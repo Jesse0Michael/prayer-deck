@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { ApiClient } from "../api/client";
 import type { Card, Media } from "../api/types";
 import { CardFace } from "../components/CardFace";
+import { NotesPanel, type NotesPanelHandle } from "../components/NotesPanel";
 
 interface CardEditorProps {
   api: ApiClient;
@@ -22,6 +23,8 @@ interface EditorImage {
 
 // Two rows of three, so a card with hundreds of pictures stays a tidy grid.
 const GALLERY_PAGE_SIZE = 6;
+
+const NOTES_PAGE_SIZE = 5;
 
 // Inline because the CSS minifier keeps only the -webkit- form of backdrop-filter.
 const blur = { backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" };
@@ -45,7 +48,6 @@ function pendingImage(file: File): EditorImage {
 
 export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: CardEditorProps) {
   const [name, setName] = useState(card?.name ?? "");
-  const [notes, setNotes] = useState(card?.notes ?? "");
   // Newest first: the first image is the card's primary face, the rest fill the gallery.
   const [images, setImages] = useState<EditorImage[]>(() => (card?.media ?? []).map((media) => ({ media })));
   const [removed, setRemoved] = useState<string[]>([]);
@@ -63,6 +65,20 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
     const urls = previewURLs.current;
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, []);
+
+  // A card made on the fly when a note is added before the card was saved.
+  const [started, setStarted] = useState<Card | null>(null);
+  const noteCardID = card?.id ?? started?.id ?? null;
+
+  const notesPanel = useRef<NotesPanelHandle>(null);
+
+  const startCard = async () => {
+    if (latest.current) return latest.current.id;
+    const created = await api.createCard(deckID, { name: name.trim() });
+    latest.current = created;
+    setStarted(created);
+    return created.id;
+  };
 
   const close = () => {
     if (latest.current) onSaved(latest.current);
@@ -99,14 +115,15 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      setError("Give this card a name.");
-      return;
-    }
     setSaving(true);
     setError(null);
-    const input = { name: name.trim(), notes: notes.trim() };
+    const input = { name: name.trim() };
     try {
+      // A note typed but not yet checked off is saved before the card.
+      if ((await notesPanel.current?.saveDraft()) === false) {
+        setSaving(false);
+        return;
+      }
       let saved = latest.current ?? card ?? (await api.createCard(deckID, input));
       latest.current = saved;
       for (const mediaID of removed) {
@@ -141,7 +158,7 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
   };
 
   const primary = images[0]?.media ?? null;
-  const previewCard: Card = { id: card?.id ?? "new", name: name || card?.name || "New card", notes, media: [], created_at: "", updated_at: "" };
+  const previewCard: Card = { id: card?.id ?? "new", name: name || card?.name || "New card", media: [], created_at: "", updated_at: "" };
   const gallery = images.slice(1);
   const pageCount = Math.ceil(gallery.length / GALLERY_PAGE_SIZE);
   const currentPage = Math.min(page, Math.max(pageCount - 1, 0));
@@ -212,6 +229,7 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
                         layout
                         initial={{ opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
+                        whileHover={{ y: -3, rotate: -1.5 }}
                         exit={{ opacity: 0, scale: 0.85 }}
                         transition={{ type: "spring", stiffness: 300, damping: 26 }}
                       >
@@ -264,16 +282,10 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rhett, or The Seins" autoFocus={!card} maxLength={80} />
             </label>
 
-            <label className="field">
+            <div className="field">
               <span>Notes</span>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={4}
-                placeholder="How can you pray for them? What can you thank God for in their lives or the work they do?"
-                maxLength={1000}
-              />
-            </label>
+              <NotesPanel ref={notesPanel} api={api} cardID={noteCardID} createCard={startCard} pageSize={NOTES_PAGE_SIZE} />
+            </div>
           </div>
         </div>
 

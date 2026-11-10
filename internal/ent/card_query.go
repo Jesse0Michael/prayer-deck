@@ -16,6 +16,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/card"
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
 	"github.com/jesse0michael/prayer-deck/internal/ent/media"
+	"github.com/jesse0michael/prayer-deck/internal/ent/note"
 	"github.com/jesse0michael/prayer-deck/internal/ent/predicate"
 )
 
@@ -28,6 +29,7 @@ type CardQuery struct {
 	predicates []predicate.Card
 	withDeck   *DeckQuery
 	withMedia  *MediaQuery
+	withNotes  *NoteQuery
 	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -102,6 +104,28 @@ func (_q *CardQuery) QueryMedia() *MediaQuery {
 			sqlgraph.From(card.Table, card.FieldID, selector),
 			sqlgraph.To(media.Table, media.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, card.MediaTable, card.MediaColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryNotes chains the current query on the "notes" edge.
+func (_q *CardQuery) QueryNotes() *NoteQuery {
+	query := (&NoteClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(card.Table, card.FieldID, selector),
+			sqlgraph.To(note.Table, note.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, card.NotesTable, card.NotesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -303,6 +327,7 @@ func (_q *CardQuery) Clone() *CardQuery {
 		predicates: append([]predicate.Card{}, _q.predicates...),
 		withDeck:   _q.withDeck.Clone(),
 		withMedia:  _q.withMedia.Clone(),
+		withNotes:  _q.withNotes.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -328,6 +353,17 @@ func (_q *CardQuery) WithMedia(opts ...func(*MediaQuery)) *CardQuery {
 		opt(query)
 	}
 	_q.withMedia = query
+	return _q
+}
+
+// WithNotes tells the query-builder to eager-load the nodes that are connected to
+// the "notes" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *CardQuery) WithNotes(opts ...func(*NoteQuery)) *CardQuery {
+	query := (&NoteClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNotes = query
 	return _q
 }
 
@@ -410,9 +446,10 @@ func (_q *CardQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Card, e
 		nodes       = []*Card{}
 		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withDeck != nil,
 			_q.withMedia != nil,
+			_q.withNotes != nil,
 		}
 	)
 	if _q.withDeck != nil {
@@ -449,6 +486,13 @@ func (_q *CardQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Card, e
 		if err := _q.loadMedia(ctx, query, nodes,
 			func(n *Card) { n.Edges.Media = []*Media{} },
 			func(n *Card, e *Media) { n.Edges.Media = append(n.Edges.Media, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withNotes; query != nil {
+		if err := _q.loadNotes(ctx, query, nodes,
+			func(n *Card) { n.Edges.Notes = []*Note{} },
+			func(n *Card, e *Note) { n.Edges.Notes = append(n.Edges.Notes, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -513,6 +557,37 @@ func (_q *CardQuery) loadMedia(ctx context.Context, query *MediaQuery, nodes []*
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "card_media" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *CardQuery) loadNotes(ctx context.Context, query *NoteQuery, nodes []*Card, init func(*Card), assign func(*Card, *Note)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Card)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.Note(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(card.NotesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.card_notes
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "card_notes" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "card_notes" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

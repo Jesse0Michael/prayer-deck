@@ -30,6 +30,10 @@ var (
 	card2  = uuid.MustParse("00000000-0000-0000-0000-0000000000c2")
 	card3  = uuid.MustParse("00000000-0000-0000-0000-0000000000c3")
 	card4  = uuid.MustParse("00000000-0000-0000-0000-0000000000c4")
+	note1  = uuid.MustParse("00000000-0000-0000-0000-0000000000a1")
+	note2  = uuid.MustParse("00000000-0000-0000-0000-0000000000a2")
+	note3  = uuid.MustParse("00000000-0000-0000-0000-0000000000a3")
+	note4  = uuid.MustParse("00000000-0000-0000-0000-0000000000a4")
 	media1 = uuid.MustParse("00000000-0000-0000-0000-0000000000b1")
 	media2 = uuid.MustParse("00000000-0000-0000-0000-0000000000b2")
 	asset1 = uuid.MustParse("00000000-0000-0000-0000-0000000000e1")
@@ -39,13 +43,13 @@ var (
 )
 
 var entOpts = cmp.Options{
-	cmpopts.IgnoreUnexported(ent.User{}, ent.UserEdges{}, ent.Deck{}, ent.DeckEdges{}, ent.Card{}, ent.CardEdges{}, ent.Media{}, ent.MediaEdges{}, ent.Asset{}, ent.AssetEdges{}, ent.Draw{}, ent.DrawEdges{}),
+	cmpopts.IgnoreUnexported(ent.User{}, ent.UserEdges{}, ent.Deck{}, ent.DeckEdges{}, ent.Card{}, ent.CardEdges{}, ent.Note{}, ent.NoteEdges{}, ent.Media{}, ent.MediaEdges{}, ent.Asset{}, ent.AssetEdges{}, ent.Draw{}, ent.DrawEdges{}),
 	cmpopts.EquateEmpty(),
 }
 
 // newTestStore opens an in-memory sqlite store seeded with:
-//   - user1 owning deck1 "Family" (card1 Anna with one image, card2 Ben, card3 Cara) and deck2 "Friends" (empty)
-//   - user2 owning deck3 "Other" (card4 Dan)
+//   - user1 owning deck1 "Family" (card1 Anna with one image and notes 1-3, card2 Ben, card3 Cara) and deck2 "Friends" (empty)
+//   - user2 owning deck3 "Other" (card4 Dan with note 4)
 //
 // It must be called inside a synctest bubble so timestamps are deterministic.
 func newTestStore(t *testing.T) (*entStore, *ent.Client) {
@@ -62,8 +66,12 @@ func newTestStore(t *testing.T) (*entStore, *ent.Client) {
 	client.Deck.Create().SetID(deck3).SetName("Other").SetOwnerID(user2).SetShuffledAt(t0).ExecX(ctx)
 	client.Card.Create().SetID(card1).SetName("Anna").SetDeckID(deck1).ExecX(ctx)
 	client.Card.Create().SetID(card2).SetName("Ben").SetDeckID(deck1).ExecX(ctx)
-	client.Card.Create().SetID(card3).SetName("Cara").SetNotes("loves gardening").SetDeckID(deck1).ExecX(ctx)
+	client.Card.Create().SetID(card3).SetName("Cara").SetDeckID(deck1).ExecX(ctx)
 	client.Card.Create().SetID(card4).SetName("Dan").SetDeckID(deck3).ExecX(ctx)
+	client.Note.Create().SetID(note1).SetText("loves gardening").SetCardID(card1).ExecX(ctx)
+	client.Note.Create().SetID(note2).SetText("two dogs").SetCardID(card1).SetCreatedAt(t0.Add(time.Second)).SetUpdatedAt(t0.Add(time.Second)).ExecX(ctx)
+	client.Note.Create().SetID(note3).SetText("plays cello").SetCardID(card1).SetCreatedAt(t0.Add(2 * time.Second)).SetUpdatedAt(t0.Add(2 * time.Second)).ExecX(ctx)
+	client.Note.Create().SetID(note4).SetText("fishing").SetCardID(card4).ExecX(ctx)
 	client.Media.Create().SetID(media1).SetCardID(card1).SetKind(media.KindImage).ExecX(ctx)
 	client.Asset.Create().SetID(asset1).SetMediaID(media1).SetRendition(asset.RenditionDisplay).SetKey("cards/c1/display.jpg").
 		SetContentType("image/jpeg").SetSize(100).SetWidth(10).SetHeight(15).ExecX(ctx)
@@ -84,7 +92,7 @@ func testCard(id uuid.UUID) *ent.Card {
 	case card2:
 		return &ent.Card{ID: card2, Name: "Ben", CreatedAt: t0, UpdatedAt: t0}
 	case card3:
-		return &ent.Card{ID: card3, Name: "Cara", Notes: "loves gardening", CreatedAt: t0, UpdatedAt: t0}
+		return &ent.Card{ID: card3, Name: "Cara", CreatedAt: t0, UpdatedAt: t0}
 	default:
 		return &ent.Card{ID: card4, Name: "Dan", CreatedAt: t0, UpdatedAt: t0}
 	}
@@ -275,15 +283,15 @@ func TestStore_CreateCard(t *testing.T) {
 			name:     "creates a card",
 			userID:   user1,
 			deckID:   deck2,
-			input:    CardInput{Name: ptr("Eve"), Notes: ptr("two dogs")},
-			expected: &ent.Card{ID: uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72"), Name: "Eve", Notes: "two dogs", CreatedAt: t0, UpdatedAt: t0},
+			input:    CardInput{Name: ptr("Eve")},
+			expected: &ent.Card{ID: uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72"), Name: "Eve", CreatedAt: t0, UpdatedAt: t0},
 		},
 		{
-			name:    "empty name is invalid",
-			userID:  user1,
-			deckID:  deck2,
-			input:   CardInput{Name: ptr("")},
-			wantErr: ErrInvalid,
+			name:     "creates a card without a name",
+			userID:   user1,
+			deckID:   deck2,
+			input:    CardInput{},
+			expected: &ent.Card{ID: uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72"), CreatedAt: t0, UpdatedAt: t0},
 		},
 		{
 			name:    "another user's deck is not found",
@@ -322,10 +330,10 @@ func TestStore_UpdateCard(t *testing.T) {
 			name:   "changes only the given fields",
 			userID: user1,
 			cardID: card1,
-			input:  CardInput{Notes: ptr("plays cello")},
+			input:  CardInput{Name: ptr("Annie")},
 			expected: func() *ent.Card {
 				c := testCard(card1)
-				c.Notes = "plays cello"
+				c.Name = "Annie"
 				return c
 			}(),
 		},
@@ -387,6 +395,192 @@ func TestStore_DeleteCard(t *testing.T) {
 
 				require.ErrorIs(t, err, tt.wantErr)
 				require.Equal(t, tt.expectedKeys, keys)
+			})
+		})
+	}
+}
+
+func TestStore_Notes(t *testing.T) {
+	tests := []struct {
+		name          string
+		userID        uuid.UUID
+		cardID        uuid.UUID
+		limit         int
+		offset        int
+		expectedTexts []string
+		expectedTotal int
+		wantErr       error
+	}{
+		{
+			name:          "lists newest first",
+			userID:        user1,
+			cardID:        card1,
+			limit:         6,
+			expectedTexts: []string{"plays cello", "two dogs", "loves gardening"},
+			expectedTotal: 3,
+		},
+		{
+			name:          "pages through the notes",
+			userID:        user1,
+			cardID:        card1,
+			limit:         2,
+			offset:        2,
+			expectedTexts: []string{"loves gardening"},
+			expectedTotal: 3,
+		},
+		{
+			name:          "card without notes",
+			userID:        user1,
+			cardID:        card2,
+			limit:         6,
+			expectedTexts: []string{},
+		},
+		{
+			name:    "another user's card is not found",
+			userID:  user2,
+			cardID:  card1,
+			limit:   6,
+			wantErr: ErrNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s, _ := newTestStore(t)
+
+				notes, total, err := s.Notes(t.Context(), tt.userID, tt.cardID, tt.limit, tt.offset)
+
+				require.ErrorIs(t, err, tt.wantErr)
+				require.Equal(t, tt.expectedTotal, total)
+				if tt.wantErr == nil {
+					texts := []string{}
+					for _, n := range notes {
+						texts = append(texts, n.Text)
+					}
+					require.Equal(t, tt.expectedTexts, texts)
+				}
+			})
+		})
+	}
+}
+
+func TestStore_CreateNote(t *testing.T) {
+	tests := []struct {
+		name     string
+		userID   uuid.UUID
+		cardID   uuid.UUID
+		text     string
+		expected *ent.Note
+		wantErr  error
+	}{
+		{
+			name:     "creates a note",
+			userID:   user1,
+			cardID:   card2,
+			text:     "birthday in May",
+			expected: &ent.Note{ID: uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72"), Text: "birthday in May", CreatedAt: t0, UpdatedAt: t0},
+		},
+		{
+			name:    "empty text is invalid",
+			userID:  user1,
+			cardID:  card2,
+			wantErr: ErrInvalid,
+		},
+		{
+			name:    "another user's card is not found",
+			userID:  user2,
+			cardID:  card2,
+			text:    "birthday in May",
+			wantErr: ErrNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				uuid.SetRand(rand.New(rand.NewSource(1)))
+				defer uuid.SetRand(nil)
+				s, _ := newTestStore(t)
+
+				n, err := s.CreateNote(t.Context(), tt.userID, tt.cardID, tt.text)
+
+				require.ErrorIs(t, err, tt.wantErr)
+				require.Empty(t, cmp.Diff(tt.expected, n, entOpts))
+			})
+		})
+	}
+}
+
+func TestStore_UpdateNote(t *testing.T) {
+	tests := []struct {
+		name     string
+		userID   uuid.UUID
+		noteID   uuid.UUID
+		text     string
+		expected *ent.Note
+		wantErr  error
+	}{
+		{
+			name:     "changes the text and updated time only",
+			userID:   user1,
+			noteID:   note2,
+			text:     "three dogs",
+			expected: &ent.Note{ID: note2, Text: "three dogs", CreatedAt: t0.Add(time.Second), UpdatedAt: t0},
+		},
+		{
+			name:    "empty text is invalid",
+			userID:  user1,
+			noteID:  note2,
+			wantErr: ErrInvalid,
+		},
+		{
+			name:    "another user's note is not found",
+			userID:  user2,
+			noteID:  note2,
+			text:    "three dogs",
+			wantErr: ErrNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s, _ := newTestStore(t)
+
+				n, err := s.UpdateNote(t.Context(), tt.userID, tt.noteID, tt.text)
+
+				require.ErrorIs(t, err, tt.wantErr)
+				require.Empty(t, cmp.Diff(tt.expected, n, entOpts))
+			})
+		})
+	}
+}
+
+func TestStore_DeleteNote(t *testing.T) {
+	tests := []struct {
+		name    string
+		userID  uuid.UUID
+		noteID  uuid.UUID
+		wantErr error
+	}{
+		{
+			name:   "deletes the note",
+			userID: user1,
+			noteID: note1,
+		},
+		{
+			name:    "another user's note is not found",
+			userID:  user2,
+			noteID:  note1,
+			wantErr: ErrNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s, _ := newTestStore(t)
+
+				err := s.DeleteNote(t.Context(), tt.userID, tt.noteID)
+
+				require.ErrorIs(t, err, tt.wantErr)
 			})
 		})
 	}

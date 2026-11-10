@@ -1,4 +1,4 @@
-import type { Card, CardInput, Deck, Draw, LoginProvider, Tokens, User } from "./types";
+import type { Card, CardInput, Deck, Draw, LoginProvider, Note, Tokens, User } from "./types";
 
 const TOKENS_KEY = "prayer-deck.tokens";
 
@@ -80,7 +80,7 @@ export class ApiClient {
     return this.request<{ cards: Card[] }>("GET", `/v1/decks/${deckID}/cards`).then((r) => r.cards);
   }
 
-  createCard(deckID: string, input: CardInput & { name: string }): Promise<Card> {
+  createCard(deckID: string, input: CardInput): Promise<Card> {
     return this.request("POST", `/v1/decks/${deckID}/cards`, { body: input });
   }
 
@@ -90,6 +90,23 @@ export class ApiClient {
 
   deleteCard(cardID: string): Promise<void> {
     return this.request("DELETE", `/v1/cards/${cardID}`);
+  }
+
+  /** One page of a card's notes, newest first, with the card's total note count. */
+  notes(cardID: string, limit: number, offset: number): Promise<{ notes: Note[]; total: number }> {
+    return this.request("GET", `/v1/cards/${cardID}/notes?limit=${limit}&offset=${offset}`);
+  }
+
+  createNote(cardID: string, text: string): Promise<Note> {
+    return this.request("POST", `/v1/cards/${cardID}/notes`, { body: { text } });
+  }
+
+  updateNote(noteID: string, text: string): Promise<Note> {
+    return this.request("PATCH", `/v1/notes/${noteID}`, { body: { text } });
+  }
+
+  deleteNote(noteID: string): Promise<void> {
+    return this.request("DELETE", `/v1/notes/${noteID}`);
   }
 
   /** Uploads an image as the card's newest media, which becomes its primary face. */

@@ -15,6 +15,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/card"
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
 	"github.com/jesse0michael/prayer-deck/internal/ent/media"
+	"github.com/jesse0michael/prayer-deck/internal/ent/note"
 	"github.com/jesse0michael/prayer-deck/internal/ent/predicate"
 )
 
@@ -42,26 +43,6 @@ func (_u *CardUpdate) SetNillableName(v *string) *CardUpdate {
 	if v != nil {
 		_u.SetName(*v)
 	}
-	return _u
-}
-
-// SetNotes sets the "notes" field.
-func (_u *CardUpdate) SetNotes(v string) *CardUpdate {
-	_u.mutation.SetNotes(v)
-	return _u
-}
-
-// SetNillableNotes sets the "notes" field if the given value is not nil.
-func (_u *CardUpdate) SetNillableNotes(v *string) *CardUpdate {
-	if v != nil {
-		_u.SetNotes(*v)
-	}
-	return _u
-}
-
-// ClearNotes clears the value of the "notes" field.
-func (_u *CardUpdate) ClearNotes() *CardUpdate {
-	_u.mutation.ClearNotes()
 	return _u
 }
 
@@ -117,6 +98,21 @@ func (_u *CardUpdate) AddMedia(v ...*Media) *CardUpdate {
 	return _u.AddMediumIDs(ids...)
 }
 
+// AddNoteIDs adds the "notes" edge to the Note entity by IDs.
+func (_u *CardUpdate) AddNoteIDs(ids ...uuid.UUID) *CardUpdate {
+	_u.mutation.AddNoteIDs(ids...)
+	return _u
+}
+
+// AddNotes adds the "notes" edges to the Note entity.
+func (_u *CardUpdate) AddNotes(v ...*Note) *CardUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNoteIDs(ids...)
+}
+
 // Mutation returns the CardMutation object of the builder.
 func (_u *CardUpdate) Mutation() *CardMutation {
 	return _u.mutation
@@ -147,6 +143,27 @@ func (_u *CardUpdate) RemoveMedia(v ...*Media) *CardUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMediumIDs(ids...)
+}
+
+// ClearNotes clears all "notes" edges to the Note entity.
+func (_u *CardUpdate) ClearNotes() *CardUpdate {
+	_u.mutation.ClearNotes()
+	return _u
+}
+
+// RemoveNoteIDs removes the "notes" edge to Note entities by IDs.
+func (_u *CardUpdate) RemoveNoteIDs(ids ...uuid.UUID) *CardUpdate {
+	_u.mutation.RemoveNoteIDs(ids...)
+	return _u
+}
+
+// RemoveNotes removes "notes" edges to Note entities.
+func (_u *CardUpdate) RemoveNotes(v ...*Note) *CardUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNoteIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -187,11 +204,6 @@ func (_u *CardUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *CardUpdate) check() error {
-	if v, ok := _u.mutation.Name(); ok {
-		if err := card.NameValidator(v); err != nil {
-			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Card.name": %w`, err)}
-		}
-	}
 	if _u.mutation.DeckCleared() && len(_u.mutation.DeckIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Card.deck"`)
 	}
@@ -212,12 +224,6 @@ func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(card.FieldName, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.Notes(); ok {
-		_spec.SetField(card.FieldNotes, field.TypeString, value)
-	}
-	if _u.mutation.NotesCleared() {
-		_spec.ClearField(card.FieldNotes, field.TypeString)
 	}
 	if value, ok := _u.mutation.LastDrawnAt(); ok {
 		_spec.SetField(card.FieldLastDrawnAt, field.TypeTime, value)
@@ -302,6 +308,51 @@ func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.NotesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   card.NotesTable,
+			Columns: []string{card.NotesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNotesIDs(); len(nodes) > 0 && !_u.mutation.NotesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   card.NotesTable,
+			Columns: []string{card.NotesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NotesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   card.NotesTable,
+			Columns: []string{card.NotesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{card.Label}
@@ -333,26 +384,6 @@ func (_u *CardUpdateOne) SetNillableName(v *string) *CardUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
 	}
-	return _u
-}
-
-// SetNotes sets the "notes" field.
-func (_u *CardUpdateOne) SetNotes(v string) *CardUpdateOne {
-	_u.mutation.SetNotes(v)
-	return _u
-}
-
-// SetNillableNotes sets the "notes" field if the given value is not nil.
-func (_u *CardUpdateOne) SetNillableNotes(v *string) *CardUpdateOne {
-	if v != nil {
-		_u.SetNotes(*v)
-	}
-	return _u
-}
-
-// ClearNotes clears the value of the "notes" field.
-func (_u *CardUpdateOne) ClearNotes() *CardUpdateOne {
-	_u.mutation.ClearNotes()
 	return _u
 }
 
@@ -408,6 +439,21 @@ func (_u *CardUpdateOne) AddMedia(v ...*Media) *CardUpdateOne {
 	return _u.AddMediumIDs(ids...)
 }
 
+// AddNoteIDs adds the "notes" edge to the Note entity by IDs.
+func (_u *CardUpdateOne) AddNoteIDs(ids ...uuid.UUID) *CardUpdateOne {
+	_u.mutation.AddNoteIDs(ids...)
+	return _u
+}
+
+// AddNotes adds the "notes" edges to the Note entity.
+func (_u *CardUpdateOne) AddNotes(v ...*Note) *CardUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddNoteIDs(ids...)
+}
+
 // Mutation returns the CardMutation object of the builder.
 func (_u *CardUpdateOne) Mutation() *CardMutation {
 	return _u.mutation
@@ -438,6 +484,27 @@ func (_u *CardUpdateOne) RemoveMedia(v ...*Media) *CardUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMediumIDs(ids...)
+}
+
+// ClearNotes clears all "notes" edges to the Note entity.
+func (_u *CardUpdateOne) ClearNotes() *CardUpdateOne {
+	_u.mutation.ClearNotes()
+	return _u
+}
+
+// RemoveNoteIDs removes the "notes" edge to Note entities by IDs.
+func (_u *CardUpdateOne) RemoveNoteIDs(ids ...uuid.UUID) *CardUpdateOne {
+	_u.mutation.RemoveNoteIDs(ids...)
+	return _u
+}
+
+// RemoveNotes removes "notes" edges to Note entities.
+func (_u *CardUpdateOne) RemoveNotes(v ...*Note) *CardUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveNoteIDs(ids...)
 }
 
 // Where appends a list predicates to the CardUpdate builder.
@@ -491,11 +558,6 @@ func (_u *CardUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *CardUpdateOne) check() error {
-	if v, ok := _u.mutation.Name(); ok {
-		if err := card.NameValidator(v); err != nil {
-			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Card.name": %w`, err)}
-		}
-	}
 	if _u.mutation.DeckCleared() && len(_u.mutation.DeckIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Card.deck"`)
 	}
@@ -533,12 +595,6 @@ func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(card.FieldName, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.Notes(); ok {
-		_spec.SetField(card.FieldNotes, field.TypeString, value)
-	}
-	if _u.mutation.NotesCleared() {
-		_spec.ClearField(card.FieldNotes, field.TypeString)
 	}
 	if value, ok := _u.mutation.LastDrawnAt(); ok {
 		_spec.SetField(card.FieldLastDrawnAt, field.TypeTime, value)
@@ -616,6 +672,51 @@ func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.NotesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   card.NotesTable,
+			Columns: []string{card.NotesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedNotesIDs(); len(nodes) > 0 && !_u.mutation.NotesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   card.NotesTable,
+			Columns: []string{card.NotesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.NotesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   card.NotesTable,
+			Columns: []string{card.NotesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

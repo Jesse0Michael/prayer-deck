@@ -21,8 +21,6 @@ type Card struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
-	// Notes holds the value of the "notes" field.
-	Notes string `json:"notes,omitempty"`
 	// LastDrawnAt holds the value of the "last_drawn_at" field.
 	LastDrawnAt *time.Time `json:"last_drawn_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -42,9 +40,11 @@ type CardEdges struct {
 	Deck *Deck `json:"deck,omitempty"`
 	// Media holds the value of the media edge.
 	Media []*Media `json:"media,omitempty"`
+	// Notes holds the value of the notes edge.
+	Notes []*Note `json:"notes,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // DeckOrErr returns the Deck value or an error if the edge
@@ -67,12 +67,21 @@ func (e CardEdges) MediaOrErr() ([]*Media, error) {
 	return nil, &NotLoadedError{edge: "media"}
 }
 
+// NotesOrErr returns the Notes value or an error if the edge
+// was not loaded in eager-loading.
+func (e CardEdges) NotesOrErr() ([]*Note, error) {
+	if e.loadedTypes[2] {
+		return e.Notes, nil
+	}
+	return nil, &NotLoadedError{edge: "notes"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Card) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case card.FieldName, card.FieldNotes:
+		case card.FieldName:
 			values[i] = new(sql.NullString)
 		case card.FieldLastDrawnAt, card.FieldCreatedAt, card.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -106,12 +115,6 @@ func (_m *Card) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
-			}
-		case card.FieldNotes:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field notes", values[i])
-			} else if value.Valid {
-				_m.Notes = value.String
 			}
 		case card.FieldLastDrawnAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -162,6 +165,11 @@ func (_m *Card) QueryMedia() *MediaQuery {
 	return NewCardClient(_m.config).QueryMedia(_m)
 }
 
+// QueryNotes queries the "notes" edge of the Card entity.
+func (_m *Card) QueryNotes() *NoteQuery {
+	return NewCardClient(_m.config).QueryNotes(_m)
+}
+
 // Update returns a builder for updating this Card.
 // Note that you need to call Card.Unwrap() before calling this method if this Card
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -187,9 +195,6 @@ func (_m *Card) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
-	builder.WriteString(", ")
-	builder.WriteString("notes=")
-	builder.WriteString(_m.Notes)
 	builder.WriteString(", ")
 	if v := _m.LastDrawnAt; v != nil {
 		builder.WriteString("last_drawn_at=")

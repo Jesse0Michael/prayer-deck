@@ -6,6 +6,7 @@ export type User = Schemas["User"];
 export type Deck = Schemas["Deck"];
 export type Card = Schemas["Card"];
 export type CardInput = Schemas["CardInput"];
+export type Note = Schemas["Note"];
 export type Media = Schemas["Media"];
 export type DrawnCard = Schemas["DrawnCard"];
 export type Draw = Schemas["Draw"];

@@ -30,6 +30,7 @@ var (
 	testUserID  = uuid.MustParse("00000000-0000-0000-0000-0000000000a1")
 	testDeckID  = uuid.MustParse("00000000-0000-0000-0000-0000000000d1")
 	testCardID  = uuid.MustParse("00000000-0000-0000-0000-0000000000c1")
+	testNoteID  = uuid.MustParse("00000000-0000-0000-0000-0000000000a2")
 	testMediaID = uuid.MustParse("00000000-0000-0000-0000-0000000000b1")
 	testDrawID  = uuid.MustParse("00000000-0000-0000-0000-0000000000f1")
 	testTime    = time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
@@ -47,10 +48,10 @@ func testDeck() *store.Deck {
 const testDeckJSON = `{"id":"00000000-0000-0000-0000-0000000000d1","name":"test-deck","card_count":3,"remaining":2,"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
 
 func testCard() *ent.Card {
-	return &ent.Card{ID: testCardID, Name: "test-card", Notes: "test-notes", CreatedAt: testTime, UpdatedAt: testTime}
+	return &ent.Card{ID: testCardID, Name: "test-card", CreatedAt: testTime, UpdatedAt: testTime}
 }
 
-const testCardJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","notes":"test-notes","media":[],"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
+const testCardJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","media":[],"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
 
 func testCardWithMedia() *ent.Card {
 	c := testCard()
@@ -64,7 +65,7 @@ func testCardWithMedia() *ent.Card {
 
 const testMediaJSON = `{"id":"00000000-0000-0000-0000-0000000000b1","kind":"image","display_url":"https://storage.test/test-display","thumbnail_url":"https://storage.test/test-thumbnail","original_url":"https://storage.test/test-original","width":1024,"height":1536,"created_at":"2026-11-09T12:00:00Z"}`
 
-const testCardWithMediaJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","notes":"test-notes","media":[` + testMediaJSON + `],"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
+const testCardWithMediaJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","media":[` + testMediaJSON + `],"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
 
 func expectURLs(storage *MockStorage) {
 	storage.EXPECT().URL(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, key string) (string, error) {
@@ -472,7 +473,6 @@ func TestServer_decks(t *testing.T) {
 
 func TestServer_cards(t *testing.T) {
 	name := "test-card"
-	notes := "test-notes"
 	tests := []struct {
 		name         string
 		method       string
@@ -518,21 +518,23 @@ func TestServer_cards(t *testing.T) {
 			name:   "create card",
 			method: http.MethodPost,
 			path:   "/v1/decks/" + testDeckID.String() + "/cards",
-			body:   `{"name":" test-card ","notes":"test-notes"}`,
+			body:   `{"name":" test-card "}`,
 			mockSetup: func(st *MockStore, _ *MockStorage) {
-				st.EXPECT().CreateCard(gomock.Any(), testUserID, testDeckID, store.CardInput{Name: &name, Notes: &notes}).Return(testCard(), nil)
+				st.EXPECT().CreateCard(gomock.Any(), testUserID, testDeckID, store.CardInput{Name: &name}).Return(testCard(), nil)
 			},
 			expectedCode: http.StatusCreated,
 			expectedBody: testCardJSON,
 		},
 		{
-			name:         "create card without a name",
-			method:       http.MethodPost,
-			path:         "/v1/decks/" + testDeckID.String() + "/cards",
-			body:         `{"notes":"test-notes"}`,
-			mockSetup:    func(*MockStore, *MockStorage) {},
-			expectedCode: http.StatusBadRequest,
-			expectedBody: `{"errors":[{"message":"name is required"}]}`,
+			name:   "create card without a name",
+			method: http.MethodPost,
+			path:   "/v1/decks/" + testDeckID.String() + "/cards",
+			body:   `{}`,
+			mockSetup: func(st *MockStore, _ *MockStorage) {
+				st.EXPECT().CreateCard(gomock.Any(), testUserID, testDeckID, store.CardInput{}).Return(testCard(), nil)
+			},
+			expectedCode: http.StatusCreated,
+			expectedBody: testCardJSON,
 		},
 		{
 			name:   "get card",
@@ -546,24 +548,27 @@ func TestServer_cards(t *testing.T) {
 			expectedBody: testCardWithMediaJSON,
 		},
 		{
-			name:   "update card notes",
+			name:   "update card name",
 			method: http.MethodPatch,
 			path:   "/v1/cards/" + testCardID.String(),
-			body:   `{"notes":"test-notes"}`,
+			body:   `{"name":"test-card"}`,
 			mockSetup: func(st *MockStore, _ *MockStorage) {
-				st.EXPECT().UpdateCard(gomock.Any(), testUserID, testCardID, store.CardInput{Notes: &notes}).Return(testCard(), nil)
+				st.EXPECT().UpdateCard(gomock.Any(), testUserID, testCardID, store.CardInput{Name: &name}).Return(testCard(), nil)
 			},
 			expectedCode: http.StatusOK,
 			expectedBody: testCardJSON,
 		},
 		{
-			name:         "update card with an empty name",
-			method:       http.MethodPatch,
-			path:         "/v1/cards/" + testCardID.String(),
-			body:         `{"name":""}`,
-			mockSetup:    func(*MockStore, *MockStorage) {},
-			expectedCode: http.StatusBadRequest,
-			expectedBody: `{"errors":[{"message":"name must not be empty"}]}`,
+			name:   "update card with a blank name",
+			method: http.MethodPatch,
+			path:   "/v1/cards/" + testCardID.String(),
+			body:   `{"name":"  "}`,
+			mockSetup: func(st *MockStore, _ *MockStorage) {
+				blank := ""
+				st.EXPECT().UpdateCard(gomock.Any(), testUserID, testCardID, store.CardInput{Name: &blank}).Return(testCard(), nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedBody: testCardJSON,
 		},
 		{
 			name:   "delete card and its media",
@@ -590,6 +595,144 @@ func TestServer_cards(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ts := newTestServer(t)
 			tt.mockSetup(ts.store, ts.storage)
+
+			w := ts.serve(tt.method, tt.path, ts.token, "application/json", strings.NewReader(tt.body))
+
+			require.Equal(t, tt.expectedCode, w.Code)
+			require.Equal(t, tt.expectedBody, strings.TrimSpace(w.Body.String()))
+		})
+	}
+}
+
+func testNote() *ent.Note {
+	return &ent.Note{ID: testNoteID, Text: "test-note", CreatedAt: testTime, UpdatedAt: testTime}
+}
+
+const testNoteJSON = `{"id":"00000000-0000-0000-0000-0000000000a2","text":"test-note","created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
+
+func TestServer_notes(t *testing.T) {
+	tests := []struct {
+		name         string
+		method       string
+		path         string
+		body         string
+		mockSetup    func(st *MockStore)
+		expectedCode int
+		expectedBody string
+	}{
+		{
+			name:   "list notes with the default page size",
+			method: http.MethodGet,
+			path:   "/v1/cards/" + testCardID.String() + "/notes",
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().Notes(gomock.Any(), testUserID, testCardID, 6, 0).Return([]*ent.Note{testNote()}, 7, nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedBody: `{"notes":[` + testNoteJSON + `],"total":7}`,
+		},
+		{
+			name:   "list notes with a page",
+			method: http.MethodGet,
+			path:   "/v1/cards/" + testCardID.String() + "/notes?limit=2&offset=4",
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().Notes(gomock.Any(), testUserID, testCardID, 2, 4).Return(nil, 4, nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedBody: `{"notes":[],"total":4}`,
+		},
+		{
+			name:         "list notes with an invalid limit",
+			method:       http.MethodGet,
+			path:         "/v1/cards/" + testCardID.String() + "/notes?limit=0",
+			mockSetup:    func(*MockStore) {},
+			expectedCode: http.StatusBadRequest,
+			expectedBody: `{"errors":[{"message":"invalid limit","details":"must be between 1 and 50"}]}`,
+		},
+		{
+			name:   "list notes of another user's card",
+			method: http.MethodGet,
+			path:   "/v1/cards/" + testCardID.String() + "/notes",
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().Notes(gomock.Any(), testUserID, testCardID, 6, 0).Return(nil, 0, store.ErrNotFound)
+			},
+			expectedCode: http.StatusNotFound,
+			expectedBody: `{"errors":[{"message":"not found"}]}`,
+		},
+		{
+			name:   "create note",
+			method: http.MethodPost,
+			path:   "/v1/cards/" + testCardID.String() + "/notes",
+			body:   `{"text":" test-note "}`,
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().CreateNote(gomock.Any(), testUserID, testCardID, "test-note").Return(testNote(), nil)
+			},
+			expectedCode: http.StatusCreated,
+			expectedBody: testNoteJSON,
+		},
+		{
+			name:         "create note without text",
+			method:       http.MethodPost,
+			path:         "/v1/cards/" + testCardID.String() + "/notes",
+			body:         `{"text":"  "}`,
+			mockSetup:    func(*MockStore) {},
+			expectedCode: http.StatusBadRequest,
+			expectedBody: `{"errors":[{"message":"text must not be empty"}]}`,
+		},
+		{
+			name:         "create note that is too long",
+			method:       http.MethodPost,
+			path:         "/v1/cards/" + testCardID.String() + "/notes",
+			body:         `{"text":"` + strings.Repeat("a", 2001) + `"}`,
+			mockSetup:    func(*MockStore) {},
+			expectedCode: http.StatusBadRequest,
+			expectedBody: `{"errors":[{"message":"text is too long","details":"limit is 2000 characters"}]}`,
+		},
+		{
+			name:   "update note",
+			method: http.MethodPatch,
+			path:   "/v1/notes/" + testNoteID.String(),
+			body:   `{"text":"test-note"}`,
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().UpdateNote(gomock.Any(), testUserID, testNoteID, "test-note").Return(testNote(), nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedBody: testNoteJSON,
+		},
+		{
+			name:   "update another user's note",
+			method: http.MethodPatch,
+			path:   "/v1/notes/" + testNoteID.String(),
+			body:   `{"text":"test-note"}`,
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().UpdateNote(gomock.Any(), testUserID, testNoteID, "test-note").Return(nil, store.ErrNotFound)
+			},
+			expectedCode: http.StatusNotFound,
+			expectedBody: `{"errors":[{"message":"not found"}]}`,
+		},
+		{
+			name:   "delete note",
+			method: http.MethodDelete,
+			path:   "/v1/notes/" + testNoteID.String(),
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().DeleteNote(gomock.Any(), testUserID, testNoteID).Return(nil)
+			},
+			expectedCode: http.StatusNoContent,
+		},
+		{
+			name:   "delete another user's note",
+			method: http.MethodDelete,
+			path:   "/v1/notes/" + testNoteID.String(),
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().DeleteNote(gomock.Any(), testUserID, testNoteID).Return(store.ErrNotFound)
+			},
+			expectedCode: http.StatusNotFound,
+			expectedBody: `{"errors":[{"message":"not found"}]}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := newTestServer(t)
+			tt.mockSetup(ts.store)
 
 			w := ts.serve(tt.method, tt.path, ts.token, "application/json", strings.NewReader(tt.body))
 

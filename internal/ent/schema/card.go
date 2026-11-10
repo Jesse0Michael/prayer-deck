@@ -20,12 +20,9 @@ func (Card) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New).
 			Immutable(),
+		// name may be blank: a card can be made before anyone is named on it.
 		field.String("name").
-			NotEmpty(),
-		// notes holds the small personal touches that bring someone to mind:
-		// a hobby, a pet, a favorite place.
-		field.Text("notes").
-			Optional(),
+			Default(""),
 		field.Time("last_drawn_at").
 			Optional().
 			Nillable(),
@@ -46,5 +43,6 @@ func (Card) Edges() []ent.Edge {
 			Required().
 			Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.To("media", Media.Type),
+		edge.To("notes", Note.Type),
 	}
 }

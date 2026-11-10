@@ -61,11 +61,6 @@ func Name(v string) predicate.Card {
 	return predicate.Card(sql.FieldEQ(FieldName, v))
 }
 
-// Notes applies equality check predicate on the "notes" field. It's identical to NotesEQ.
-func Notes(v string) predicate.Card {
-	return predicate.Card(sql.FieldEQ(FieldNotes, v))
-}
-
 // LastDrawnAt applies equality check predicate on the "last_drawn_at" field. It's identical to LastDrawnAtEQ.
 func LastDrawnAt(v time.Time) predicate.Card {
 	return predicate.Card(sql.FieldEQ(FieldLastDrawnAt, v))
@@ -144,81 +139,6 @@ func NameEqualFold(v string) predicate.Card {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.Card {
 	return predicate.Card(sql.FieldContainsFold(FieldName, v))
-}
-
-// NotesEQ applies the EQ predicate on the "notes" field.
-func NotesEQ(v string) predicate.Card {
-	return predicate.Card(sql.FieldEQ(FieldNotes, v))
-}
-
-// NotesNEQ applies the NEQ predicate on the "notes" field.
-func NotesNEQ(v string) predicate.Card {
-	return predicate.Card(sql.FieldNEQ(FieldNotes, v))
-}
-
-// NotesIn applies the In predicate on the "notes" field.
-func NotesIn(vs ...string) predicate.Card {
-	return predicate.Card(sql.FieldIn(FieldNotes, vs...))
-}
-
-// NotesNotIn applies the NotIn predicate on the "notes" field.
-func NotesNotIn(vs ...string) predicate.Card {
-	return predicate.Card(sql.FieldNotIn(FieldNotes, vs...))
-}
-
-// NotesGT applies the GT predicate on the "notes" field.
-func NotesGT(v string) predicate.Card {
-	return predicate.Card(sql.FieldGT(FieldNotes, v))
-}
-
-// NotesGTE applies the GTE predicate on the "notes" field.
-func NotesGTE(v string) predicate.Card {
-	return predicate.Card(sql.FieldGTE(FieldNotes, v))
-}
-
-// NotesLT applies the LT predicate on the "notes" field.
-func NotesLT(v string) predicate.Card {
-	return predicate.Card(sql.FieldLT(FieldNotes, v))
-}
-
-// NotesLTE applies the LTE predicate on the "notes" field.
-func NotesLTE(v string) predicate.Card {
-	return predicate.Card(sql.FieldLTE(FieldNotes, v))
-}
-
-// NotesContains applies the Contains predicate on the "notes" field.
-func NotesContains(v string) predicate.Card {
-	return predicate.Card(sql.FieldContains(FieldNotes, v))
-}
-
-// NotesHasPrefix applies the HasPrefix predicate on the "notes" field.
-func NotesHasPrefix(v string) predicate.Card {
-	return predicate.Card(sql.FieldHasPrefix(FieldNotes, v))
-}
-
-// NotesHasSuffix applies the HasSuffix predicate on the "notes" field.
-func NotesHasSuffix(v string) predicate.Card {
-	return predicate.Card(sql.FieldHasSuffix(FieldNotes, v))
-}
-
-// NotesIsNil applies the IsNil predicate on the "notes" field.
-func NotesIsNil() predicate.Card {
-	return predicate.Card(sql.FieldIsNull(FieldNotes))
-}
-
-// NotesNotNil applies the NotNil predicate on the "notes" field.
-func NotesNotNil() predicate.Card {
-	return predicate.Card(sql.FieldNotNull(FieldNotes))
-}
-
-// NotesEqualFold applies the EqualFold predicate on the "notes" field.
-func NotesEqualFold(v string) predicate.Card {
-	return predicate.Card(sql.FieldEqualFold(FieldNotes, v))
-}
-
-// NotesContainsFold applies the ContainsFold predicate on the "notes" field.
-func NotesContainsFold(v string) predicate.Card {
-	return predicate.Card(sql.FieldContainsFold(FieldNotes, v))
 }
 
 // LastDrawnAtEQ applies the EQ predicate on the "last_drawn_at" field.
@@ -389,6 +309,29 @@ func HasMedia() predicate.Card {
 func HasMediaWith(preds ...predicate.Media) predicate.Card {
 	return predicate.Card(func(s *sql.Selector) {
 		step := newMediaStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasNotes applies the HasEdge predicate on the "notes" edge.
+func HasNotes() predicate.Card {
+	return predicate.Card(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, NotesTable, NotesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNotesWith applies the HasEdge predicate on the "notes" edge with a given conditions (other predicates).
+func HasNotesWith(preds ...predicate.Note) predicate.Card {
+	return predicate.Card(func(s *sql.Selector) {
+		step := newNotesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

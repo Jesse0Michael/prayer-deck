@@ -213,9 +213,7 @@ paths:
         content:
           application/json:
             schema:
-              allOf:
-                - $ref: "#/components/schemas/CardInput"
-                - required: [name]
+              $ref: "#/components/schemas/CardInput"
       responses:
         "201":
           description: Created
@@ -263,6 +261,92 @@ paths:
           $ref: "#/components/responses/Error"
     delete:
       summary: Delete a card and its media
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/Error"
+  /v1/cards/{cardID}/notes:
+    parameters:
+      - $ref: "#/components/parameters/CardID"
+    get:
+      summary: List a card's notes, newest first
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 6
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: One page of notes and the card's total note count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notes, total]
+                properties:
+                  notes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Note"
+                  total:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+    post:
+      summary: Add a note to a card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /v1/notes/{noteID}:
+    parameters:
+      - $ref: "#/components/parameters/NoteID"
+    patch:
+      summary: Change a note's text
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+    delete:
+      summary: Remove a note
       responses:
         "204":
           description: Deleted
@@ -398,6 +482,13 @@ components:
       schema:
         type: string
         format: uuid
+    NoteID:
+      name: noteID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     MediaID:
       name: mediaID
       in: path
@@ -500,9 +591,29 @@ components:
       properties:
         name:
           type: string
-        notes:
+    NoteInput:
+      type: object
+      required: [text]
+      properties:
+        text:
           type: string
-          description: Personal touches such as a hobby, pet, or favorite place.
+          minLength: 1
+          maxLength: 2000
+    Note:
+      type: object
+      required: [id, text, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
     Media:
       type: object
       required: [id, kind, display_url, thumbnail_url, original_url, width, height, created_at]
@@ -529,14 +640,12 @@ components:
           format: date-time
     Card:
       type: object
-      required: [id, name, notes, media, created_at, updated_at]
+      required: [id, name, media, created_at, updated_at]
       properties:
         id:
           type: string
           format: uuid
         name:
-          type: string
-        notes:
           type: string
         media:
           type: array

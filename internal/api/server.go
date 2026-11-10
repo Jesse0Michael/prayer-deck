@@ -98,6 +98,10 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.Handle("GET /v1/cards/{cardID}", s.authed(s.getCard))
 	mux.Handle("PATCH /v1/cards/{cardID}", s.authed(s.updateCard))
 	mux.Handle("DELETE /v1/cards/{cardID}", s.authed(s.deleteCard))
+	mux.Handle("GET /v1/cards/{cardID}/notes", s.authed(s.listNotes))
+	mux.Handle("POST /v1/cards/{cardID}/notes", s.authed(s.createNote))
+	mux.Handle("PATCH /v1/notes/{noteID}", s.authed(s.updateNote))
+	mux.Handle("DELETE /v1/notes/{noteID}", s.authed(s.deleteNote))
 	mux.Handle("POST /v1/cards/{cardID}/media", s.authed(s.addMedia))
 	mux.Handle("DELETE /v1/cards/{cardID}/media/{mediaID}", s.authed(s.deleteMedia))
 

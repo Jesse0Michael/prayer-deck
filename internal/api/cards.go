@@ -22,27 +22,17 @@ import (
 const maxImageBytes = 25 << 20
 
 type cardRequest struct {
-	Name  *string `json:"name"`
-	Notes *string `json:"notes"`
+	Name *string `json:"name"`
 }
 
-// input validates the request. requireName is set when creating a card.
-func (req cardRequest) input(requireName bool) (store.CardInput, error) {
+// input trims the name; a blank name is allowed.
+func (req cardRequest) input() store.CardInput {
 	var in store.CardInput
 	if req.Name != nil {
 		name := strings.TrimSpace(*req.Name)
-		if name == "" {
-			return in, httperrors.NewError(http.StatusBadRequest, "name must not be empty", "")
-		}
 		in.Name = &name
-	} else if requireName {
-		return in, httperrors.NewError(http.StatusBadRequest, "name is required", "")
 	}
-	if req.Notes != nil {
-		notes := strings.TrimSpace(*req.Notes)
-		in.Notes = &notes
-	}
-	return in, nil
+	return in
 }
 
 type cardsResponse struct {
@@ -92,11 +82,7 @@ func (s *Server) createCard(w http.ResponseWriter, r *http.Request) {
 		httperrors.WriteError(ctx, w, httperrors.NewError(http.StatusBadRequest, "invalid request body", err.Error()))
 		return
 	}
-	in, err := req.input(true)
-	if err != nil {
-		httperrors.WriteError(ctx, w, err)
-		return
-	}
+	in := req.input()
 
 	c, err := s.store.CreateCard(ctx, userID, deckID, in)
 	if err != nil {
@@ -154,11 +140,7 @@ func (s *Server) updateCard(w http.ResponseWriter, r *http.Request) {
 		httperrors.WriteError(ctx, w, httperrors.NewError(http.StatusBadRequest, "invalid request body", err.Error()))
 		return
 	}
-	in, err := req.input(false)
-	if err != nil {
-		httperrors.WriteError(ctx, w, err)
-		return
-	}
+	in := req.input()
 
 	c, err := s.store.UpdateCard(ctx, userID, cardID, in)
 	if err != nil {

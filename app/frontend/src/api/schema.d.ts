@@ -441,7 +441,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["CardInput"] & unknown;
+                    "application/json": components["schemas"]["CardInput"];
                 };
             };
             responses: {
@@ -549,6 +549,149 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Card"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        trace?: never;
+    };
+    "/v1/cards/{cardID}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cardID: components["parameters"]["CardID"];
+            };
+            cookie?: never;
+        };
+        /** List a card's notes, newest first */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                };
+                header?: never;
+                path: {
+                    cardID: components["parameters"]["CardID"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description One page of notes and the card's total note count */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            notes: components["schemas"]["Note"][];
+                            total: number;
+                        };
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        /** Add a note to a card */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    cardID: components["parameters"]["CardID"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NoteInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Note"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{noteID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteID: components["parameters"]["NoteID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a note */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noteID: components["parameters"]["NoteID"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Change a note's text */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noteID: components["parameters"]["NoteID"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NoteInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Note"];
                     };
                 };
                 400: components["responses"]["Error"];
@@ -822,8 +965,18 @@ export interface components {
         };
         CardInput: {
             name?: string;
-            /** @description Personal touches such as a hobby, pet, or favorite place. */
-            notes?: string;
+        };
+        NoteInput: {
+            text: string;
+        };
+        Note: {
+            /** Format: uuid */
+            id: string;
+            text: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         /** @description Time-limited URLs to each rendition. Width and height are the display rendition's. */
         Media: {
@@ -843,7 +996,6 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
-            notes: string;
             /** @description Newest first; the first item is the card's primary face. */
             media: components["schemas"]["Media"][];
             /** Format: date-time */
@@ -884,6 +1036,7 @@ export interface components {
     parameters: {
         DeckID: string;
         CardID: string;
+        NoteID: string;
         MediaID: string;
     };
     requestBodies: never;

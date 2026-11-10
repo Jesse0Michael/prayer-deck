@@ -24,5 +24,8 @@ type Identity func(*sql.Selector)
 // Media is the predicate function for media builders.
 type Media func(*sql.Selector)
 
+// Note is the predicate function for note builders.
+type Note func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
