@@ -90,9 +90,11 @@ docs/                   product brief, decisions, art direction, pkg follow-ups
 `card_ids` in dealt order).
 
 A deck's **pass** is defined by `Deck.shuffled_at`: a card is still in the pass
-when `Card.last_drawn_at` is null or earlier. Drawing deals from the pass. When
-the pass runs out mid-hand, the deck reshuffles (`shuffled_at = now`) and the hand
-is filled from the rest. `POST /v1/decks/{id}/shuffle` starts a fresh pass.
+when `Card.last_drawn_at` is null or earlier. Drawing deals up to the requested
+count from the pass and never reshuffles on its own, so a hand can come up short
+and a finished pass returns 409. Cards drawn in the pass, other than the current
+hand, form the **discard** returned with each draw. Drawing with `shuffle: true`
+(or `POST /v1/decks/{id}/shuffle`) starts a fresh pass (`shuffled_at = now`).
 
 ## Commands
 

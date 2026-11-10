@@ -164,18 +164,18 @@ func (mr *MockStoreMockRecorder) DeleteDeck(ctx, userID, deckID any) *gomock.Cal
 }
 
 // Draw mocks base method.
-func (m *MockStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int) (*store.Draw, error) {
+func (m *MockStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int, reshuffle bool) (*store.Draw, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Draw", ctx, userID, deckID, count)
+	ret := m.ctrl.Call(m, "Draw", ctx, userID, deckID, count, reshuffle)
 	ret0, _ := ret[0].(*store.Draw)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Draw indicates an expected call of Draw.
-func (mr *MockStoreMockRecorder) Draw(ctx, userID, deckID, count any) *gomock.Call {
+func (mr *MockStoreMockRecorder) Draw(ctx, userID, deckID, count, reshuffle any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Draw", reflect.TypeOf((*MockStore)(nil).Draw), ctx, userID, deckID, count)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Draw", reflect.TypeOf((*MockStore)(nil).Draw), ctx, userID, deckID, count, reshuffle)
 }
 
 // RenameDeck mocks base method.

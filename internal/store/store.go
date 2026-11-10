@@ -32,6 +32,8 @@ var (
 	ErrConflict = errors.New("conflict")
 	// ErrEmptyDeck is returned when drawing from a deck with no cards.
 	ErrEmptyDeck = errors.New("deck has no cards")
+	// ErrPassFinished is returned when every card in the pass has been drawn and the deck needs a shuffle.
+	ErrPassFinished = errors.New("every card in the pass has been drawn")
 )
 
 // DefaultDeckName names the deck every new account starts with.
@@ -51,7 +53,7 @@ type Identity struct {
 type Deck struct {
 	*ent.Deck
 	CardCount int
-	// Remaining is how many cards are left before the deck reshuffles.
+	// Remaining is how many cards are left to draw in the pass.
 	Remaining int
 }
 
@@ -76,7 +78,9 @@ type AssetInput struct {
 type Draw struct {
 	*ent.Draw
 	Cards []*ent.Card
-	// Remaining is how many cards are left before the deck reshuffles.
+	// Discard holds the cards drawn earlier in the pass, oldest first.
+	Discard []*ent.Card
+	// Remaining is how many cards are left to draw in the pass.
 	Remaining int
 }
 
@@ -114,9 +118,9 @@ type Store interface {
 	// the card and the replaced artwork keys to remove from storage.
 	ReplaceArtwork(ctx context.Context, userID, cardID uuid.UUID, assets []AssetInput) (*ent.Card, []string, error)
 
-	// Draw deals up to count cards from the current pass through the deck,
-	// reshuffling when the pass runs out, and replaces the deck's current draw.
-	Draw(ctx context.Context, userID, deckID uuid.UUID, count int) (*Draw, error)
+	// Draw deals up to count cards from the current pass through the deck and
+	// replaces the deck's current draw. With reshuffle set, a fresh pass starts first.
+	Draw(ctx context.Context, userID, deckID uuid.UUID, count int, reshuffle bool) (*Draw, error)
 	// CurrentDraw returns the deck's most recent draw.
 	CurrentDraw(ctx context.Context, userID, deckID uuid.UUID) (*Draw, error)
 }
@@ -428,7 +432,7 @@ func (s *entStore) ReplaceArtwork(ctx context.Context, userID, cardID uuid.UUID,
 	return c, replaced, nil
 }
 
-func (s *entStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int) (*Draw, error) {
+func (s *entStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int, reshuffle bool) (*Draw, error) {
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open transaction: %w", err)
@@ -449,31 +453,28 @@ func (s *entStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int
 		return nil, rollback(tx, ErrEmptyDeck)
 	}
 
-	var pool, drawn []*ent.Card
-	for _, c := range cards {
-		if inPass(c, d.ShuffledAt) {
-			pool = append(pool, c)
-		} else {
-			drawn = append(drawn, c)
-		}
-	}
-
-	n := min(count, len(cards))
 	now := s.timestamp()
-	s.shuffle(len(pool), func(i, j int) { pool[i], pool[j] = pool[j], pool[i] })
-	hand := slices.Clone(pool[:min(n, len(pool))])
-	remaining := len(pool) - len(hand)
-
-	// When the pass runs out mid-hand, the deck reshuffles and the hand is
-	// filled from cards drawn earlier in the finished pass.
-	if len(hand) < n {
-		s.shuffle(len(drawn), func(i, j int) { drawn[i], drawn[j] = drawn[j], drawn[i] })
-		hand = append(hand, drawn[:n-len(hand)]...)
-		remaining = len(cards) - len(hand)
+	shuffledAt := d.ShuffledAt
+	if reshuffle {
+		shuffledAt = now
 		if err := tx.Deck.UpdateOneID(deckID).SetShuffledAt(now).Exec(ctx); err != nil {
-			return nil, rollback(tx, fmt.Errorf("failed to reshuffle deck: %w", err))
+			return nil, rollback(tx, fmt.Errorf("failed to shuffle deck: %w", err))
 		}
 	}
+
+	var pool []*ent.Card
+	for _, c := range cards {
+		if inPass(c, shuffledAt) {
+			pool = append(pool, c)
+		}
+	}
+	if len(pool) == 0 {
+		return nil, rollback(tx, ErrPassFinished)
+	}
+
+	s.shuffle(len(pool), func(i, j int) { pool[i], pool[j] = pool[j], pool[i] })
+	hand := slices.Clone(pool[:min(count, len(pool))])
+	remaining := len(pool) - len(hand)
 
 	ids := make([]uuid.UUID, len(hand))
 	for i, c := range hand {
@@ -497,7 +498,11 @@ func (s *entStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int
 	if err != nil {
 		return nil, err
 	}
-	return &Draw{Draw: dr, Cards: dealt, Remaining: remaining}, nil
+	discard, err := s.discard(ctx, deckID, shuffledAt, ids)
+	if err != nil {
+		return nil, err
+	}
+	return &Draw{Draw: dr, Cards: dealt, Discard: discard, Remaining: remaining}, nil
 }
 
 func (s *entStore) CurrentDraw(ctx context.Context, userID, deckID uuid.UUID) (*Draw, error) {
@@ -518,7 +523,25 @@ func (s *entStore) CurrentDraw(ctx context.Context, userID, deckID uuid.UUID) (*
 	if err != nil {
 		return nil, err
 	}
-	return &Draw{Draw: dr, Cards: dealt, Remaining: d.Remaining}, nil
+	discard, err := s.discard(ctx, deckID, d.ShuffledAt, dr.CardIds)
+	if err != nil {
+		return nil, err
+	}
+	return &Draw{Draw: dr, Cards: dealt, Discard: discard, Remaining: d.Remaining}, nil
+}
+
+// discard loads the cards drawn in the pass that began at shuffledAt, oldest
+// first, leaving out the hand on the table.
+func (s *entStore) discard(ctx context.Context, deckID uuid.UUID, shuffledAt time.Time, hand []uuid.UUID) ([]*ent.Card, error) {
+	cards, err := s.client.Card.Query().
+		Where(card.HasDeckWith(deck.ID(deckID)), card.LastDrawnAtGTE(shuffledAt), card.IDNotIn(hand...)).
+		WithAssets().
+		Order(ent.Asc(card.FieldLastDrawnAt), ent.Asc(card.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load discarded cards: %w", err)
+	}
+	return cards, nil
 }
 
 // cardsInOrder loads cards with artwork in the order of ids, skipping any since deleted.

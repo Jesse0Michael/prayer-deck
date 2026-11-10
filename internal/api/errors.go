@@ -21,6 +21,8 @@ func storeError(err error) error {
 		return httperrors.NewError(http.StatusConflict, "conflict", err.Error())
 	case errors.Is(err, store.ErrEmptyDeck):
 		return httperrors.NewError(http.StatusUnprocessableEntity, "deck has no cards", "")
+	case errors.Is(err, store.ErrPassFinished):
+		return httperrors.NewError(http.StatusConflict, "every card has been drawn; shuffle to start again", "")
 	default:
 		return err
 	}

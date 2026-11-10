@@ -308,9 +308,10 @@ paths:
     post:
       summary: Deal a new hand
       description: |
-        Deals cards not yet drawn in the current pass through the deck. When
-        the pass runs out the deck reshuffles and the hand is completed from
-        the rest. Replaces the deck's current draw.
+        Deals up to `count` cards not yet drawn in the current pass through
+        the deck, so a hand comes up short when the pass is nearly finished.
+        With `shuffle`, every card returns to the pass before dealing.
+        Replaces the deck's current draw.
       requestBody:
         required: false
         content:
@@ -323,6 +324,10 @@ paths:
                   minimum: 1
                   maximum: 10
                   default: 3
+                shuffle:
+                  type: boolean
+                  default: false
+                  description: Start a fresh pass through the deck before dealing.
       responses:
         "201":
           description: Dealt
@@ -334,6 +339,12 @@ paths:
           $ref: "#/components/responses/Error"
         "404":
           $ref: "#/components/responses/Error"
+        "409":
+          description: Every card in the pass has been drawn; shuffle to start again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Errors"
         "422":
           description: The deck has no cards
           content:
@@ -458,7 +469,7 @@ components:
           type: integer
         remaining:
           type: integer
-          description: Cards left before the deck reshuffles.
+          description: Cards left to draw in the pass.
         created_at:
           type: string
           format: date-time
@@ -511,7 +522,7 @@ components:
           format: date-time
     Draw:
       type: object
-      required: [id, cards, remaining, created_at]
+      required: [id, cards, discard, remaining, created_at]
       properties:
         id:
           type: string
@@ -520,9 +531,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Card"
+        discard:
+          type: array
+          description: Cards drawn earlier in the pass, oldest first.
+          items:
+            $ref: "#/components/schemas/Card"
         remaining:
           type: integer
-          description: Cards left before the deck reshuffles.
+          description: Cards left to draw in the pass.
         created_at:
           type: string
           format: date-time

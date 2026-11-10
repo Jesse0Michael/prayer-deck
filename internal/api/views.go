@@ -106,6 +106,7 @@ func (s *Server) toCardViews(ctx context.Context, cards []*ent.Card) ([]cardView
 type drawView struct {
 	ID        uuid.UUID  `json:"id"`
 	Cards     []cardView `json:"cards"`
+	Discard   []cardView `json:"discard"`
 	Remaining int        `json:"remaining"`
 	CreatedAt time.Time  `json:"created_at"`
 }
@@ -115,5 +116,9 @@ func (s *Server) toDrawView(ctx context.Context, d *store.Draw) (drawView, error
 	if err != nil {
 		return drawView{}, err
 	}
-	return drawView{ID: d.ID, Cards: cards, Remaining: d.Remaining, CreatedAt: d.CreatedAt}, nil
+	discard, err := s.toCardViews(ctx, d.Discard)
+	if err != nil {
+		return drawView{}, err
+	}
+	return drawView{ID: d.ID, Cards: cards, Discard: discard, Remaining: d.Remaining, CreatedAt: d.CreatedAt}, nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent"
 	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
 	"github.com/jesse0michael/prayer-deck/internal/ent/card"
+	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
 	"github.com/jesse0michael/prayer-deck/internal/ent/enttest"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
@@ -87,6 +88,14 @@ func drawnAt(c *ent.Card, at time.Time) *ent.Card {
 	c.LastDrawnAt = &at
 	c.UpdatedAt = at
 	return c
+}
+
+func cardIDs(cards []*ent.Card) []uuid.UUID {
+	var ids []uuid.UUID
+	for _, c := range cards {
+		ids = append(ids, c.ID)
+	}
+	return ids
 }
 
 func ptr[T any](v T) *T {
@@ -434,7 +443,9 @@ func TestStore_Draw(t *testing.T) {
 		userID             uuid.UUID
 		deckID             uuid.UUID
 		count              int
+		reshuffle          bool
 		expectedCards      []*ent.Card
+		expectedDiscard    []*ent.Card
 		expectedRemaining  int
 		expectedShuffledAt time.Time
 		wantErr            error
@@ -450,26 +461,51 @@ func TestStore_Draw(t *testing.T) {
 			expectedShuffledAt: t0,
 		},
 		{
-			name: "skips cards already drawn this pass",
+			name: "skips cards already drawn this pass and discards them",
 			setup: func(t *testing.T, client *ent.Client) {
-				client.Card.UpdateOneID(card1).SetLastDrawnAt(t0.Add(time.Minute)).ExecX(t.Context())
+				client.Card.UpdateOneID(card1).SetLastDrawnAt(t0.Add(time.Minute)).SetUpdatedAt(t0.Add(time.Minute)).ExecX(t.Context())
 			},
 			userID:             user1,
 			deckID:             deck1,
 			count:              2,
 			expectedCards:      []*ent.Card{drawnAt(testCard(card2), drawTime), drawnAt(testCard(card3), drawTime)},
+			expectedDiscard:    []*ent.Card{drawnAt(testCard(card1), t0.Add(time.Minute))},
 			expectedRemaining:  0,
 			expectedShuffledAt: t0,
 		},
 		{
-			name: "reshuffles when the pass runs out mid-hand",
+			name: "deals a short hand when the pass is nearly finished",
 			setup: func(t *testing.T, client *ent.Client) {
-				client.Card.Update().SetLastDrawnAt(t0.Add(time.Minute)).Where(card.IDIn(card1, card2)).ExecX(t.Context())
+				client.Card.Update().SetLastDrawnAt(t0.Add(time.Minute)).SetUpdatedAt(t0.Add(time.Minute)).Where(card.IDIn(card1, card2)).ExecX(t.Context())
 			},
 			userID:             user1,
 			deckID:             deck1,
 			count:              2,
-			expectedCards:      []*ent.Card{drawnAt(testCard(card3), drawTime), drawnAt(testCard(card1), drawTime)},
+			expectedCards:      []*ent.Card{drawnAt(testCard(card3), drawTime)},
+			expectedDiscard:    []*ent.Card{drawnAt(testCard(card1), t0.Add(time.Minute)), drawnAt(testCard(card2), t0.Add(time.Minute))},
+			expectedRemaining:  0,
+			expectedShuffledAt: t0,
+		},
+		{
+			name: "finished pass",
+			setup: func(t *testing.T, client *ent.Client) {
+				client.Card.Update().SetLastDrawnAt(t0.Add(time.Minute)).Where(card.HasDeckWith(deck.ID(deck1))).ExecX(t.Context())
+			},
+			userID:  user1,
+			deckID:  deck1,
+			count:   3,
+			wantErr: ErrPassFinished,
+		},
+		{
+			name: "shuffle starts a fresh pass before dealing",
+			setup: func(t *testing.T, client *ent.Client) {
+				client.Card.Update().SetLastDrawnAt(t0.Add(time.Minute)).Where(card.HasDeckWith(deck.ID(deck1))).ExecX(t.Context())
+			},
+			userID:             user1,
+			deckID:             deck1,
+			count:              2,
+			reshuffle:          true,
+			expectedCards:      []*ent.Card{drawnAt(testCard(card1), drawTime), drawnAt(testCard(card2), drawTime)},
 			expectedRemaining:  1,
 			expectedShuffledAt: drawTime,
 		},
@@ -507,13 +543,14 @@ func TestStore_Draw(t *testing.T) {
 				tt.setup(t, client)
 				time.Sleep(drawTime.Sub(t0))
 
-				d, err := s.Draw(t.Context(), tt.userID, tt.deckID, tt.count)
+				d, err := s.Draw(t.Context(), tt.userID, tt.deckID, tt.count, tt.reshuffle)
 
 				require.ErrorIs(t, err, tt.wantErr)
 				if tt.wantErr != nil {
 					return
 				}
 				require.Empty(t, cmp.Diff(tt.expectedCards, d.Cards, entOpts))
+				require.Empty(t, cmp.Diff(tt.expectedDiscard, d.Discard, entOpts))
 				require.Equal(t, tt.expectedRemaining, d.Remaining)
 				ids := make([]uuid.UUID, len(tt.expectedCards))
 				for i, c := range tt.expectedCards {
@@ -530,28 +567,43 @@ func TestStore_Draw(t *testing.T) {
 
 func TestStore_CurrentDraw(t *testing.T) {
 	tests := []struct {
-		name          string
-		setup         func(t *testing.T, s *entStore, client *ent.Client)
-		userID        uuid.UUID
-		expectedCards []uuid.UUID
-		wantErr       error
+		name            string
+		setup           func(t *testing.T, s *entStore, client *ent.Client)
+		userID          uuid.UUID
+		expectedCards   []uuid.UUID
+		expectedDiscard []uuid.UUID
+		wantErr         error
 	}{
 		{
-			name: "returns the latest draw in dealt order",
+			name: "returns the latest draw in dealt order with the earlier hand discarded",
 			setup: func(t *testing.T, s *entStore, _ *ent.Client) {
-				_, err := s.Draw(t.Context(), user1, deck1, 1)
+				_, err := s.Draw(t.Context(), user1, deck1, 1, false)
 				require.NoError(t, err)
+				time.Sleep(time.Minute)
 				s.shuffle = func(n int, swap func(i, j int)) { swap(0, n-1) }
-				_, err = s.Draw(t.Context(), user1, deck1, 2)
+				_, err = s.Draw(t.Context(), user1, deck1, 2, false)
+				require.NoError(t, err)
+			},
+			userID:          user1,
+			expectedCards:   []uuid.UUID{card3, card2},
+			expectedDiscard: []uuid.UUID{card1},
+		},
+		{
+			name: "shuffling empties the discard",
+			setup: func(t *testing.T, s *entStore, _ *ent.Client) {
+				_, err := s.Draw(t.Context(), user1, deck1, 2, false)
+				require.NoError(t, err)
+				time.Sleep(time.Minute)
+				_, err = s.Draw(t.Context(), user1, deck1, 1, true)
 				require.NoError(t, err)
 			},
 			userID:        user1,
-			expectedCards: []uuid.UUID{card3, card2},
+			expectedCards: []uuid.UUID{card1},
 		},
 		{
 			name: "skips cards deleted since the draw",
 			setup: func(t *testing.T, s *entStore, client *ent.Client) {
-				_, err := s.Draw(t.Context(), user1, deck1, 3)
+				_, err := s.Draw(t.Context(), user1, deck1, 3, false)
 				require.NoError(t, err)
 				client.Card.DeleteOneID(card2).ExecX(t.Context())
 			},
@@ -567,7 +619,7 @@ func TestStore_CurrentDraw(t *testing.T) {
 		{
 			name: "another user's draw is not found",
 			setup: func(t *testing.T, s *entStore, _ *ent.Client) {
-				_, err := s.Draw(t.Context(), user1, deck1, 3)
+				_, err := s.Draw(t.Context(), user1, deck1, 3, false)
 				require.NoError(t, err)
 			},
 			userID:  user2,
@@ -586,11 +638,8 @@ func TestStore_CurrentDraw(t *testing.T) {
 				if tt.wantErr != nil {
 					return
 				}
-				ids := make([]uuid.UUID, len(d.Cards))
-				for i, c := range d.Cards {
-					ids[i] = c.ID
-				}
-				require.Equal(t, tt.expectedCards, ids)
+				require.Equal(t, tt.expectedCards, cardIDs(d.Cards))
+				require.Equal(t, tt.expectedDiscard, cardIDs(d.Discard))
 			})
 		})
 	}

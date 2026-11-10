@@ -98,8 +98,9 @@ export class ApiClient {
     return this.request("PUT", `/v1/cards/${cardID}/artwork`, { form });
   }
 
-  draw(deckID: string, count: number): Promise<Draw> {
-    return this.request("POST", `/v1/decks/${deckID}/draws`, { body: { count } });
+  /** Deals the next cards in the pass; with shuffle, every card returns to the pass first. */
+  draw(deckID: string, count: number, shuffle: boolean): Promise<Draw> {
+    return this.request("POST", `/v1/decks/${deckID}/draws`, { body: { count, shuffle } });
   }
 
   /** The deck's most recent draw, or null when nothing has been drawn yet. */

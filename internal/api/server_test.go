@@ -693,7 +693,7 @@ func TestServer_draws(t *testing.T) {
 		Cards:     []*ent.Card{testCard()},
 		Remaining: 4,
 	}
-	testDrawJSON := `{"id":"00000000-0000-0000-0000-0000000000f1","cards":[` + testCardJSON + `],"remaining":4,"created_at":"2026-11-09T12:00:00Z"}`
+	testDrawJSON := `{"id":"00000000-0000-0000-0000-0000000000f1","cards":[` + testCardJSON + `],"discard":[],"remaining":4,"created_at":"2026-11-09T12:00:00Z"}`
 	tests := []struct {
 		name         string
 		method       string
@@ -708,7 +708,7 @@ func TestServer_draws(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/v1/decks/" + testDeckID.String() + "/draws",
 			mockSetup: func(st *MockStore) {
-				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3).Return(testDraw, nil)
+				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3, false).Return(testDraw, nil)
 			},
 			expectedCode: http.StatusCreated,
 			expectedBody: testDrawJSON,
@@ -719,7 +719,18 @@ func TestServer_draws(t *testing.T) {
 			path:   "/v1/decks/" + testDeckID.String() + "/draws",
 			body:   `{"count":1}`,
 			mockSetup: func(st *MockStore) {
-				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 1).Return(testDraw, nil)
+				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 1, false).Return(testDraw, nil)
+			},
+			expectedCode: http.StatusCreated,
+			expectedBody: testDrawJSON,
+		},
+		{
+			name:   "shuffle and draw",
+			method: http.MethodPost,
+			path:   "/v1/decks/" + testDeckID.String() + "/draws",
+			body:   `{"count":3,"shuffle":true}`,
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3, true).Return(testDraw, nil)
 			},
 			expectedCode: http.StatusCreated,
 			expectedBody: testDrawJSON,
@@ -738,10 +749,20 @@ func TestServer_draws(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/v1/decks/" + testDeckID.String() + "/draws",
 			mockSetup: func(st *MockStore) {
-				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3).Return(nil, store.ErrEmptyDeck)
+				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3, false).Return(nil, store.ErrEmptyDeck)
 			},
 			expectedCode: http.StatusUnprocessableEntity,
 			expectedBody: `{"errors":[{"message":"deck has no cards"}]}`,
+		},
+		{
+			name:   "draw after the pass is finished",
+			method: http.MethodPost,
+			path:   "/v1/decks/" + testDeckID.String() + "/draws",
+			mockSetup: func(st *MockStore) {
+				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3, false).Return(nil, store.ErrPassFinished)
+			},
+			expectedCode: http.StatusConflict,
+			expectedBody: `{"errors":[{"message":"every card has been drawn; shuffle to start again"}]}`,
 		},
 		{
 			name:   "current draw",

@@ -37,17 +37,21 @@ Checked against v3.1.0 (the stable release as of November 2026):
 
 ### Multiple decks: supported, kept light
 
-The schema and API support many decks per account. The UI keeps decks secondary:
-every account starts with "My Deck", and the deck picker appears only once a
-second deck exists.
+The schema and API support many decks per account. For now the UI shows no deck
+controls at all: every account starts with "My Deck", and the app draws from and
+manages the account's first deck.
 
 ### Shuffle and repeat behavior
 
 Each deck is drawn in **passes**: a card isn't dealt again until every card in
-the deck has been dealt once. When a pass runs out partway through a hand, the
-deck reshuffles and the hand is completed from the rest. The table shows how many
-cards remain before a reshuffle. "Shuffle" (API only for now) starts a fresh pass
-on demand.
+the deck has been dealt once, or the deck is shuffled. The table offers two
+actions, being tried out side by side:
+
+- **Shuffle** gathers the hand and the discard pile back into the deck, shuffles,
+  and deals three from a fresh pass.
+- **Draw** lays the hand face up on a discard pile beside the deck and deals the
+  next (up to) three from the same pass. When the pass is finished, only Shuffle
+  is available.
 
 ### Draw persistence
 

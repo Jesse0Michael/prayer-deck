@@ -625,9 +625,10 @@ export interface paths {
         put?: never;
         /**
          * Deal a new hand
-         * @description Deals cards not yet drawn in the current pass through the deck. When
-         *     the pass runs out the deck reshuffles and the hand is completed from
-         *     the rest. Replaces the deck's current draw.
+         * @description Deals up to `count` cards not yet drawn in the current pass through
+         *     the deck, so a hand comes up short when the pass is nearly finished.
+         *     With `shuffle`, every card returns to the pass before dealing.
+         *     Replaces the deck's current draw.
          */
         post: {
             parameters: {
@@ -643,6 +644,11 @@ export interface paths {
                     "application/json": {
                         /** @default 3 */
                         count?: number;
+                        /**
+                         * @description Start a fresh pass through the deck before dealing.
+                         * @default false
+                         */
+                        shuffle?: boolean;
                     };
                 };
             };
@@ -658,6 +664,15 @@ export interface paths {
                 };
                 400: components["responses"]["Error"];
                 404: components["responses"]["Error"];
+                /** @description Every card in the pass has been drawn; shuffle to start again */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Errors"];
+                    };
+                };
                 /** @description The deck has no cards */
                 422: {
                     headers: {
@@ -756,7 +771,7 @@ export interface components {
             id: string;
             name: string;
             card_count: number;
-            /** @description Cards left before the deck reshuffles. */
+            /** @description Cards left to draw in the pass. */
             remaining: number;
             /** Format: date-time */
             created_at: string;
@@ -791,7 +806,9 @@ export interface components {
             /** Format: uuid */
             id: string;
             cards: components["schemas"]["Card"][];
-            /** @description Cards left before the deck reshuffles. */
+            /** @description Cards drawn earlier in the pass, oldest first. */
+            discard: components["schemas"]["Card"][];
+            /** @description Cards left to draw in the pass. */
             remaining: number;
             /** Format: date-time */
             created_at: string;

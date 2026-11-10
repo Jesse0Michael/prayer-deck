@@ -16,6 +16,8 @@ const (
 
 type drawRequest struct {
 	Count int `json:"count"`
+	// Shuffle starts a fresh pass through the deck before dealing.
+	Shuffle bool `json:"shuffle"`
 }
 
 func (s *Server) drawCards(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +50,7 @@ func (s *Server) drawCards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d, err := s.store.Draw(ctx, userID, deckID, req.Count)
+	d, err := s.store.Draw(ctx, userID, deckID, req.Count, req.Shuffle)
 	if err != nil {
 		httperrors.WriteError(ctx, w, storeError(err))
 		return

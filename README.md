@@ -16,10 +16,11 @@ people easy.
 
 - **Draw.** The deck rests on a linen table. Shuffle it, deal three cards face
   down, and turn each one over when you're ready. Tap someone to hold their card
-  up close with the details that bring them to mind. Your current draw stays on
+  up close with the notes that bring them to mind. Your current draw stays on
   the table until you draw again, so you can step away and come back.
-- **Work through the deck.** Each draw comes from cards you haven't drawn yet in
-  this pass through the deck. Once everyone has had a turn, the deck reshuffles.
+- **Work through the deck.** Draw lays your hand on a discard pile and deals the
+  next cards you haven't drawn yet. Shuffle gathers everything back and starts
+  a fresh pass.
 - **Manage cards.** Add, edit, and remove cards and their artwork. Cards without
   artwork show a handwritten name until a drawing is added.
 - **Decks.** Keep more than one deck, such as family, friends, or church, and
@@ -36,7 +37,7 @@ It exists to help you remember people, not to measure prayer.
 | **Deck**     | A named collection of cards. Every account starts with one.                                                                                               |
 | **Card**     | A person, couple, or family, with a display name, notes, and artwork.                                                                          |
 | **Artwork**  | The illustration on a card's face. Each upload is kept in its original form and also prepared in lighter sizes for the card face and for lists.           |
-| **Pass**     | One trip through a deck. Cards drawn in the current pass wait until the deck reshuffles.                                                                  |
+| **Pass**     | One trip through a deck. Cards drawn in the current pass wait on the discard pile until the deck is shuffled.                                             |
 | **Draw**     | The hand most recently dealt from a deck. It lasts until the next draw.                                                                                   |
 
 ## How it fits together

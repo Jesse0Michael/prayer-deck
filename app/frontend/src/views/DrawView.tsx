@@ -2,20 +2,22 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ApiError, type ApiClient } from "../api/client";
-import type { Deck, Draw } from "../api/types";
+import type { Card, Deck, Draw } from "../api/types";
 import { CardBack } from "../components/CardBack";
 import { PlayingCard } from "../components/PlayingCard";
 import { preloadFaces } from "../lib/media";
 import { useElementSize, type Size } from "../lib/useElementSize";
 import { FocusCard } from "./FocusCard";
 
-type Phase = "loading" | "idle" | "shuffling" | "dealing" | "dealt" | "collecting";
+type Phase = "loading" | "idle" | "shuffling" | "dealing" | "dealt" | "collecting" | "discarding";
 
 const DRAW_COUNT = 3;
 const STACK_DEPTH = 7;
+const DISCARD_DEPTH = 4;
 const SHUFFLE_MS = 1500;
 const DEAL_STAGGER = 0.22;
 const COLLECT_MS = 650;
+const DISCARD_MS = 700;
 const REVEALED_KEY = "prayer-deck.revealed";
 
 const dealSpring = { type: "spring", stiffness: 120, damping: 17, mass: 1 } as const;
@@ -41,9 +43,10 @@ function computeLayout({ width, height }: Size, count: number) {
 
   const deckIdle: Placement = { x: width / 2, y: height / 2, scale: 1 };
   const deckAside: Placement = { x: width / 2, y: top + deckSmallH / 2, scale: smallScale };
+  const discardAside: Placement = { x: width / 2 + deckW * smallScale + gap, y: deckAside.y, scale: smallScale };
   const handY = top + deckSmallH + rowGap + handH / 2;
   const slot = (i: number): Placement => ({ x: width / 2 + (i - (n - 1) / 2) * (handW + gap), y: handY, scale: 1 });
-  return { handW, handH, deckW, deckIdle, deckAside, slot };
+  return { handW, handH, deckW, deckIdle, deckAside, discardAside, slot };
 }
 
 function loadRevealed(drawID: string): Set<string> {
@@ -74,6 +77,8 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
   const size = useElementSize(stageRef);
   const [phase, setPhase] = useState<Phase>("loading");
   const [draw, setDraw] = useState<Draw | null>(null);
+  const [discard, setDiscard] = useState<Card[]>([]);
+  const [remaining, setRemaining] = useState(0);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +87,7 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
     let cancelled = false;
     setPhase("loading");
     setDraw(null);
+    setDiscard([]);
     setFocusIndex(null);
     setError(null);
     api
@@ -89,9 +95,11 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       .then(async (current) => {
         if (cancelled) return;
         if (current && current.cards.length > 0) {
-          await preloadFaces(current.cards, 3000);
+          await preloadFaces([...current.cards, ...current.discard.slice(-1)], 3000);
           if (cancelled) return;
           setDraw(current);
+          setDiscard(current.discard);
+          setRemaining(current.remaining);
           setRevealed(loadRevealed(current.id));
           setPhase("dealt");
         } else {
@@ -110,12 +118,40 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
 
   const count = draw?.cards.length ?? DRAW_COUNT;
   const layout = useMemo(() => computeLayout(size, count), [size, count]);
-  const handOut = phase === "dealing" || phase === "dealt" || phase === "collecting";
-  const busy = phase === "loading" || phase === "shuffling" || phase === "dealing" || phase === "collecting";
+  const handOut = phase === "dealing" || phase === "dealt" || phase === "collecting" || phase === "discarding";
+  const busy = phase === "loading" || phase === "shuffling" || phase === "dealing" || phase === "collecting" || phase === "discarding";
+  const canDraw = phase === "dealt" && remaining > 0;
   const deckPlacement = handOut ? layout.deckAside : layout.deckIdle;
   const deckAsHand: Placement = { ...deckPlacement, scale: (layout.deckW * deckPlacement.scale) / layout.handW };
+  const discardAsHand: Placement = { ...layout.discardAside, scale: (layout.deckW * layout.discardAside.scale) / layout.handW };
+  // The pile thins as the pass runs down and fills again once cards are gathered for a shuffle.
+  const deckDepth = handOut && phase !== "collecting" ? Math.min(STACK_DEPTH, remaining) : STACK_DEPTH;
 
-  const startDraw = useCallback(async () => {
+  const fetchDraw = useCallback(
+    async (shuffle: boolean) => {
+      const dealt = await api.draw(deck.id, DRAW_COUNT, shuffle);
+      await preloadFaces(dealt.cards);
+      return dealt;
+    },
+    [api, deck.id],
+  );
+
+  const deal = useCallback(
+    async (dealt: Draw) => {
+      setDraw(dealt);
+      setRemaining(dealt.remaining);
+      setRevealed(new Set());
+      saveRevealed(dealt.id, new Set());
+      setPhase("dealing");
+      onDeckChanged();
+      await sleep(DEAL_STAGGER * 1000 * (dealt.cards.length - 1) + 700);
+      setPhase("dealt");
+    },
+    [onDeckChanged],
+  );
+
+  /** Gathers the hand and the discard back into the deck, shuffles, and deals from a fresh pass. */
+  const shuffleAndDraw = useCallback(async () => {
     if (busy) return;
     setError(null);
     setFocusIndex(null);
@@ -124,22 +160,11 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       await sleep(COLLECT_MS + DEAL_STAGGER * 1000 * (draw.cards.length - 1));
       setDraw(null);
     }
+    setDiscard([]);
     setPhase("shuffling");
     try {
-      const [dealt] = await Promise.all([
-        api.draw(deck.id, DRAW_COUNT).then(async (d) => {
-          await preloadFaces(d.cards);
-          return d;
-        }),
-        sleep(SHUFFLE_MS),
-      ]);
-      setDraw(dealt);
-      setRevealed(new Set());
-      saveRevealed(dealt.id, new Set());
-      setPhase("dealing");
-      onDeckChanged();
-      await sleep(DEAL_STAGGER * 1000 * (dealt.cards.length - 1) + 700);
-      setPhase("dealt");
+      const [dealt] = await Promise.all([fetchDraw(true), sleep(SHUFFLE_MS)]);
+      await deal(dealt);
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
         setError("empty");
@@ -148,7 +173,23 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       }
       setPhase("idle");
     }
-  }, [api, busy, deck.id, draw, onDeckChanged]);
+  }, [busy, deal, draw, fetchDraw]);
+
+  /** Lays the hand on the discard pile and deals the next cards in the pass without shuffling. */
+  const drawNext = useCallback(async () => {
+    if (!canDraw || !draw) return;
+    setError(null);
+    setFocusIndex(null);
+    setPhase("discarding");
+    try {
+      const [dealt] = await Promise.all([fetchDraw(false), sleep(DISCARD_MS + DEAL_STAGGER * 1000 * (draw.cards.length - 1))]);
+      setDiscard((prev) => [...prev, ...draw.cards]);
+      await deal(dealt);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setPhase("dealt");
+    }
+  }, [canDraw, deal, draw, fetchDraw]);
 
   const reveal = useCallback(
     (cardIDs: string[]) => {
@@ -163,7 +204,6 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
     [draw],
   );
 
-  const allRevealed = draw ? draw.cards.every((c) => revealed.has(c.id)) : false;
 
   return (
     <div className="draw-view">
@@ -179,34 +219,55 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
             >
               <button
                 type="button"
-                className={`deck-button${phase === "idle" ? " deck-ready" : ""}`}
-                onClick={startDraw}
-                disabled={busy || phase === "dealt"}
-                aria-label="Shuffle and draw three cards"
+                className={`deck-button${phase === "idle" ? " deck-ready" : ""}${deckDepth === 0 ? " deck-empty" : ""}`}
+                onClick={phase === "idle" ? shuffleAndDraw : drawNext}
+                disabled={phase !== "idle" && !canDraw}
+                aria-label={phase === "idle" ? "Shuffle and draw three cards" : "Draw the next cards"}
               >
-                {Array.from({ length: STACK_DEPTH }, (_, i) => (
+                {Array.from({ length: deckDepth }, (_, i) => (
                   <ShuffleCard key={i} index={i} width={layout.deckW} shuffling={phase === "shuffling"} />
                 ))}
               </button>
             </motion.div>
 
+            {discard.length > 0 && (
+              <motion.div
+                className="discard"
+                style={{ width: layout.deckW, height: layout.deckW * 1.5, left: -layout.deckW / 2, top: (-layout.deckW * 1.5) / 2 }}
+                initial={false}
+                animate={{ ...(phase === "collecting" ? deckPlacement : layout.discardAside) }}
+                transition={{ type: "spring", stiffness: 150, damping: 22 }}
+                aria-label={`${discard.length} ${discard.length === 1 ? "card" : "cards"} drawn this pass`}
+              >
+                {Array.from({ length: Math.min(discard.length - 1, DISCARD_DEPTH) }, (_, i) => (
+                  <div key={i} className="stack-card" style={{ transform: `translateY(${(DISCARD_DEPTH - i) * 1.4}px)` }}>
+                    <CardBack />
+                  </div>
+                ))}
+                <div className="discard-top">
+                  <PlayingCard card={discard[discard.length - 1]} width={layout.deckW} faceUp={phase !== "collecting"} tactile={false} />
+                </div>
+              </motion.div>
+            )}
+
             {draw &&
                 draw.cards.map((card, i) => {
-                  const target = phase === "collecting" ? deckAsHand : layout.slot(i);
+                  const target = phase === "collecting" ? deckAsHand : phase === "discarding" ? discardAsHand : layout.slot(i);
                   const order = phase === "collecting" ? draw.cards.length - 1 - i : i;
+                  const gathered = phase === "collecting" || phase === "discarding";
                   return (
                     <motion.div
                       key={`${draw.id}-${card.id}`}
                       className="hand-card"
                       style={{ width: layout.handW, left: -layout.handW / 2, top: -layout.handH / 2, zIndex: 10 + i }}
                       initial={{ ...deckAsHand, rotate: -4 + i * 3 }}
-                      animate={{ ...target, rotate: phase === "collecting" ? 0 : (i - (draw.cards.length - 1) / 2) * 1.5 }}
+                      animate={{ ...target, rotate: gathered ? 0 : (i - (draw.cards.length - 1) / 2) * 1.5 }}
                       transition={{ ...dealSpring, delay: phase === "dealt" ? 0 : order * DEAL_STAGGER }}
                     >
                       <PlayingCard
                         card={card}
                         width={layout.handW}
-                        faceUp={revealed.has(card.id) && phase !== "collecting"}
+                        faceUp={phase === "discarding" || (revealed.has(card.id) && phase !== "collecting")}
                         tactile={phase === "dealt"}
                         label={revealed.has(card.id) ? `Spend time with ${card.name}` : "Turn card over"}
                         onActivate={
@@ -223,7 +284,7 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       <div className="draw-controls">
         <AnimatePresence mode="wait">
           <motion.div
-            key={error === "empty" ? "empty" : phase === "dealt" ? (allRevealed ? "revealed" : "dealt") : phase}
+            key={error === "empty" ? "empty" : phase}
             className="draw-hint"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -238,15 +299,20 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
                 </button>
               </>
             ) : phase === "idle" ? (
-              <button type="button" className="btn btn-primary" onClick={startDraw}>
+              <button type="button" className="btn btn-primary" onClick={shuffleAndDraw}>
                 Shuffle &amp; draw
               </button>
             ) : phase === "shuffling" ? (
               <p>Shuffling…</p>
-            ) : phase === "dealt" && allRevealed ? (
-              <button type="button" className="btn" onClick={startDraw}>
-                Draw again
-              </button>
+            ) : phase === "dealt" ? (
+              <div className="draw-actions">
+                <button type="button" className="btn" onClick={shuffleAndDraw}>
+                  Shuffle
+                </button>
+                <button type="button" className="btn" onClick={drawNext} disabled={!canDraw}>
+                  Draw
+                </button>
+              </div>
             ) : (
               <p>&nbsp;</p>
             )}
