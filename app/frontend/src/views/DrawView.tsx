@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ApiError, type ApiClient } from "../api/client";
-import type { Card, Deck, Draw } from "../api/types";
+import type { DealtCard, Deck, Draw } from "../api/types";
 import { CardBack } from "../components/CardBack";
 import { PlayingCard } from "../components/PlayingCard";
 import { preloadFaces } from "../lib/media";
@@ -77,7 +77,7 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
   const size = useElementSize(stageRef);
   const [phase, setPhase] = useState<Phase>("loading");
   const [draw, setDraw] = useState<Draw | null>(null);
-  const [discard, setDiscard] = useState<Card[]>([]);
+  const [discard, setDiscard] = useState<DealtCard[]>([]);
   const [remaining, setRemaining] = useState(0);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [focusIndex, setFocusIndex] = useState<number | null>(null);

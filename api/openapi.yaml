@@ -3,7 +3,7 @@ info:
   title: Prayer Deck API
   version: 0.1.0
   description: |
-    Accounts, decks, cards, artwork, and draws for Prayer Deck.
+    Accounts, decks, cards, media, and draws for Prayer Deck.
 
     Sign-in exchanges a provider ID token for a Prayer Deck access/refresh
     token pair. Every other endpoint takes the access token as a bearer token.
@@ -160,7 +160,7 @@ paths:
         "404":
           $ref: "#/components/responses/Error"
     delete:
-      summary: Delete a deck with its cards and artwork
+      summary: Delete a deck with its cards and media
       responses:
         "204":
           description: Deleted
@@ -262,19 +262,20 @@ paths:
         "404":
           $ref: "#/components/responses/Error"
     delete:
-      summary: Delete a card and its artwork
+      summary: Delete a card and its media
       responses:
         "204":
           description: Deleted
         "404":
           $ref: "#/components/responses/Error"
-  /v1/cards/{cardID}/artwork:
+  /v1/cards/{cardID}/media:
     parameters:
       - $ref: "#/components/parameters/CardID"
-    put:
-      summary: Replace a card's artwork
+    post:
+      summary: Add an image to a card
       description: |
-        Stores the upload plus a card-face display rendition and a thumbnail.
+        Stores the upload plus a card-face display rendition and a thumbnail,
+        as the card's newest media, which makes it the card's primary face.
         Accepts PNG, JPEG, WebP, or GIF up to 25 MB.
       requestBody:
         required: true
@@ -288,8 +289,8 @@ paths:
                   type: string
                   format: binary
       responses:
-        "200":
-          description: Card with its new artwork
+        "201":
+          description: Card with its new media first
           content:
             application/json:
               schema:
@@ -301,6 +302,17 @@ paths:
         "413":
           $ref: "#/components/responses/Error"
         "415":
+          $ref: "#/components/responses/Error"
+  /v1/cards/{cardID}/media/{mediaID}:
+    parameters:
+      - $ref: "#/components/parameters/CardID"
+      - $ref: "#/components/parameters/MediaID"
+    delete:
+      summary: Remove a media item from a card
+      responses:
+        "204":
+          description: Deleted
+        "404":
           $ref: "#/components/responses/Error"
   /v1/decks/{deckID}/draws:
     parameters:
@@ -381,6 +393,13 @@ components:
         format: uuid
     CardID:
       name: cardID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MediaID:
+      name: mediaID
       in: path
       required: true
       schema:
@@ -484,11 +503,17 @@ components:
         notes:
           type: string
           description: Personal touches such as a hobby, pet, or favorite place.
-    Artwork:
+    Media:
       type: object
-      required: [display_url, thumbnail_url, original_url, width, height]
+      required: [id, kind, display_url, thumbnail_url, original_url, width, height, created_at]
       description: Time-limited URLs to each rendition. Width and height are the display rendition's.
       properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [image]
         display_url:
           type: string
         thumbnail_url:
@@ -499,9 +524,12 @@ components:
           type: integer
         height:
           type: integer
+        created_at:
+          type: string
+          format: date-time
     Card:
       type: object
-      required: [id, name, notes, artwork, created_at, updated_at]
+      required: [id, name, notes, media, created_at, updated_at]
       properties:
         id:
           type: string
@@ -510,16 +538,30 @@ components:
           type: string
         notes:
           type: string
-        artwork:
-          allOf:
-            - $ref: "#/components/schemas/Artwork"
-          nullable: true
+        media:
+          type: array
+          description: Newest first; the first item is the card's primary face.
+          items:
+            $ref: "#/components/schemas/Media"
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+    DrawnCard:
+      allOf:
+        - $ref: "#/components/schemas/Card"
+        - type: object
+          required: [face]
+          properties:
+            face:
+              description: |
+                The media chosen at random for this card when it was dealt.
+                Null when the card has no media or the chosen media was deleted.
+              allOf:
+                - $ref: "#/components/schemas/Media"
+              nullable: true
     Draw:
       type: object
       required: [id, cards, discard, remaining, created_at]
@@ -530,7 +572,7 @@ components:
         cards:
           type: array
           items:
-            $ref: "#/components/schemas/Card"
+            $ref: "#/components/schemas/DrawnCard"
         discard:
           type: array
           description: Cards drawn earlier in the pass, oldest first.

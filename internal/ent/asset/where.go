@@ -396,21 +396,21 @@ func CreatedAtLTE(v time.Time) predicate.Asset {
 	return predicate.Asset(sql.FieldLTE(FieldCreatedAt, v))
 }
 
-// HasCard applies the HasEdge predicate on the "card" edge.
-func HasCard() predicate.Asset {
+// HasMedia applies the HasEdge predicate on the "media" edge.
+func HasMedia() predicate.Asset {
 	return predicate.Asset(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, CardTable, CardColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, MediaTable, MediaColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasCardWith applies the HasEdge predicate on the "card" edge with a given conditions (other predicates).
-func HasCardWith(preds ...predicate.Card) predicate.Asset {
+// HasMediaWith applies the HasEdge predicate on the "media" edge with a given conditions (other predicates).
+func HasMediaWith(preds ...predicate.Media) predicate.Asset {
 	return predicate.Asset(func(s *sql.Selector) {
-		step := newCardStep()
+		step := newMediaStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

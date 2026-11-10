@@ -22,6 +22,8 @@ type Tx struct {
 	Draw *DrawClient
 	// Identity is the client for interacting with the Identity builders.
 	Identity *IdentityClient
+	// Media is the client for interacting with the Media builders.
+	Media *MediaClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -160,6 +162,7 @@ func (tx *Tx) init() {
 	tx.Deck = NewDeckClient(tx.config)
 	tx.Draw = NewDrawClient(tx.config)
 	tx.Identity = NewIdentityClient(tx.config)
+	tx.Media = NewMediaClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 

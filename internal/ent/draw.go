@@ -22,6 +22,8 @@ type Draw struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// CardIds holds the value of the "card_ids" field.
 	CardIds []uuid.UUID `json:"card_ids,omitempty"`
+	// Faces holds the value of the "faces" field.
+	Faces map[uuid.UUID]uuid.UUID `json:"faces,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -56,7 +58,7 @@ func (*Draw) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case draw.FieldCardIds:
+		case draw.FieldCardIds, draw.FieldFaces:
 			values[i] = new([]byte)
 		case draw.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -91,6 +93,14 @@ func (_m *Draw) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.CardIds); err != nil {
 					return fmt.Errorf("unmarshal field card_ids: %w", err)
+				}
+			}
+		case draw.FieldFaces:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field faces", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Faces); err != nil {
+					return fmt.Errorf("unmarshal field faces: %w", err)
 				}
 			}
 		case draw.FieldCreatedAt:
@@ -149,6 +159,9 @@ func (_m *Draw) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("card_ids=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CardIds))
+	builder.WriteString(", ")
+	builder.WriteString("faces=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Faces))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

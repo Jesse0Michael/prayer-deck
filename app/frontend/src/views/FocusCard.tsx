@@ -1,10 +1,10 @@
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-import type { Card } from "../api/types";
+import type { DealtCard } from "../api/types";
 import { PlayingCard } from "../components/PlayingCard";
 
 interface FocusCardProps {
-  card: Card;
+  card: DealtCard;
   onClose: () => void;
 }
 

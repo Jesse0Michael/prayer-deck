@@ -13,12 +13,13 @@ import (
 	httperrors "github.com/jesse0michael/pkg/http/errors"
 	"github.com/jesse0michael/pkg/http/server"
 	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
+	entmedia "github.com/jesse0michael/prayer-deck/internal/ent/media"
 	"github.com/jesse0michael/prayer-deck/internal/media"
 	"github.com/jesse0michael/prayer-deck/internal/store"
 )
 
-// maxArtworkBytes bounds artwork uploads; generated illustrations run a few megabytes.
-const maxArtworkBytes = 25 << 20
+// maxImageBytes bounds image uploads; generated illustrations run a few megabytes.
+const maxImageBytes = 25 << 20
 
 type cardRequest struct {
 	Name  *string `json:"name"`
@@ -193,13 +194,13 @@ func (s *Server) deleteCard(w http.ResponseWriter, r *http.Request) {
 	// The card is already gone; leftover objects are unreachable, so a
 	// storage failure is logged rather than failing the request.
 	if err := s.storage.Delete(ctx, keys...); err != nil {
-		slog.ErrorContext(ctx, "failed to delete card artwork", "err", err, "card_id", cardID)
+		slog.ErrorContext(ctx, "failed to delete card media", "err", err, "card_id", cardID)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// uploadArtwork replaces a card's artwork with a multipart "image" upload.
-func (s *Server) uploadArtwork(w http.ResponseWriter, r *http.Request) {
+// addMedia adds a multipart "image" upload to a card as its newest media.
+func (s *Server) addMedia(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID, err := subject(r)
 	if err != nil {
@@ -217,12 +218,12 @@ func (s *Server) uploadArtwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, maxArtworkBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, maxImageBytes)
 	file, _, err := r.FormFile("image")
 	if err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			httperrors.WriteError(ctx, w, httperrors.NewError(http.StatusRequestEntityTooLarge, "image is too large", fmt.Sprintf("limit is %d MB", maxArtworkBytes>>20)))
+			httperrors.WriteError(ctx, w, httperrors.NewError(http.StatusRequestEntityTooLarge, "image is too large", fmt.Sprintf("limit is %d MB", maxImageBytes>>20)))
 			return
 		}
 		httperrors.WriteError(ctx, w, httperrors.NewError(http.StatusBadRequest, "image file is required", err.Error()))
@@ -245,19 +246,18 @@ func (s *Server) uploadArtwork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	assets := make([]store.AssetInput, 0, len(renditions))
+	in := store.MediaInput{ID: uuid.New(), Kind: entmedia.KindImage}
 	var uploaded []string
 	for _, rd := range renditions {
-		id := uuid.New()
-		key := fmt.Sprintf("cards/%s/%s-%s.%s", cardID, id, rd.Name, rd.Extension)
+		key := fmt.Sprintf("cards/%s/%s/%s.%s", cardID, in.ID, rd.Name, rd.Extension)
 		if err := s.storage.Put(ctx, key, bytes.NewReader(rd.Data), int64(len(rd.Data)), rd.ContentType); err != nil {
 			s.discard(r, uploaded)
 			httperrors.WriteError(ctx, w, err)
 			return
 		}
 		uploaded = append(uploaded, key)
-		assets = append(assets, store.AssetInput{
-			ID:          id,
+		in.Assets = append(in.Assets, store.AssetInput{
+			ID:          uuid.New(),
 			Rendition:   asset.Rendition(rd.Name),
 			Key:         key,
 			ContentType: rd.ContentType,
@@ -267,20 +267,46 @@ func (s *Server) uploadArtwork(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	c, replaced, err := s.store.ReplaceArtwork(ctx, userID, cardID, assets)
+	c, err := s.store.AddMedia(ctx, userID, cardID, in)
 	if err != nil {
 		s.discard(r, uploaded)
 		httperrors.WriteError(ctx, w, storeError(err))
 		return
 	}
-	s.discard(r, replaced)
 
 	view, err := s.toCardView(ctx, c)
 	if err != nil {
 		httperrors.WriteError(ctx, w, err)
 		return
 	}
-	_ = server.Encode(w, http.StatusOK, view)
+	_ = server.Encode(w, http.StatusCreated, view)
+}
+
+func (s *Server) deleteMedia(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, err := subject(r)
+	if err != nil {
+		httperrors.WriteError(ctx, w, err)
+		return
+	}
+	cardID, err := pathID(r, "cardID")
+	if err != nil {
+		httperrors.WriteError(ctx, w, err)
+		return
+	}
+	mediaID, err := pathID(r, "mediaID")
+	if err != nil {
+		httperrors.WriteError(ctx, w, err)
+		return
+	}
+
+	keys, err := s.store.DeleteMedia(ctx, userID, cardID, mediaID)
+	if err != nil {
+		httperrors.WriteError(ctx, w, storeError(err))
+		return
+	}
+	s.discard(r, keys)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // discard removes objects no record points to, logging rather than failing
@@ -290,6 +316,6 @@ func (s *Server) discard(r *http.Request, keys []string) {
 		return
 	}
 	if err := s.storage.Delete(r.Context(), keys...); err != nil {
-		slog.ErrorContext(r.Context(), "failed to delete unreferenced artwork", "err", err, "keys", keys)
+		slog.ErrorContext(r.Context(), "failed to delete unreferenced media", "err", err, "keys", keys)
 	}
 }

@@ -1,7 +1,7 @@
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { ApiClient } from "../api/client";
-import type { Card } from "../api/types";
+import type { Card, Media } from "../api/types";
 import { CardFace } from "../components/CardFace";
 
 interface CardEditorProps {
@@ -14,41 +14,87 @@ interface CardEditorProps {
   onClose: () => void;
 }
 
+/** A picture in the editor. A picked file carries a local preview until Save uploads it. */
+interface EditorImage {
+  media: Media;
+  file?: File;
+}
+
+// Two rows of three, so a card with hundreds of pictures stays a tidy grid.
+const GALLERY_PAGE_SIZE = 6;
+
 // Inline because the CSS minifier keeps only the -webkit- form of backdrop-filter.
 const blur = { backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" };
+
+function pendingImage(file: File): EditorImage {
+  const url = URL.createObjectURL(file);
+  return {
+    file,
+    media: {
+      id: `pending-${crypto.randomUUID()}`,
+      kind: "image",
+      display_url: url,
+      thumbnail_url: url,
+      original_url: url,
+      width: 0,
+      height: 0,
+      created_at: "",
+    },
+  };
+}
 
 export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: CardEditorProps) {
   const [name, setName] = useState(card?.name ?? "");
   const [notes, setNotes] = useState(card?.notes ?? "");
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  // Newest first: the first image is the card's primary face, the rest fill the gallery.
+  const [images, setImages] = useState<EditorImage[]>(() => (card?.media ?? []).map((media) => ({ media })));
+  const [removed, setRemoved] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const previewURLs = useRef(new Set<string>());
+  // The server's latest copy of the card after a partly finished save, so closing still shows what was stored.
+  const latest = useRef<Card | null>(null);
 
   useEffect(() => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    const urls = previewURLs.current;
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
+
+  const close = () => {
+    if (latest.current) onSaved(latest.current);
+    else onClose();
+  };
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !saving && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !saving && close();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, saving]);
+  });
 
-  const chooseFile = (f: File | undefined) => {
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      setError("Choose an image file (PNG, JPEG, WebP, or GIF).");
-      return;
+  const addFiles = (files: FileList | null | undefined) => {
+    const picked = Array.from(files ?? []);
+    if (picked.length === 0) return;
+    const usable = picked.filter((f) => f.type.startsWith("image/"));
+    setError(usable.length < picked.length ? "Choose image files (PNG, JPEG, WebP, or GIF)." : null);
+    if (usable.length === 0) return;
+    const added = usable.map(pendingImage);
+    added.forEach((img) => previewURLs.current.add(img.media.display_url));
+    setImages((prev) => [...added, ...prev]);
+    setPage(0);
+  };
+
+  const removeImage = (img: EditorImage) => {
+    if (img.file) {
+      URL.revokeObjectURL(img.media.display_url);
+      previewURLs.current.delete(img.media.display_url);
+    } else {
+      setRemoved((prev) => [...prev, img.media.id]);
     }
-    setError(null);
-    setFile(f);
+    setImages((prev) => prev.filter((i) => i !== img));
   };
 
   const submit = async (e: FormEvent) => {
@@ -59,11 +105,23 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
     }
     setSaving(true);
     setError(null);
+    const input = { name: name.trim(), notes: notes.trim() };
     try {
-      const input = { name: name.trim(), notes: notes.trim() };
-      let saved = card ? await api.updateCard(card.id, input) : await api.createCard(deckID, input);
-      if (file) saved = await api.uploadArtwork(saved.id, file);
-      onSaved(saved);
+      let saved = latest.current ?? card ?? (await api.createCard(deckID, input));
+      latest.current = saved;
+      for (const mediaID of removed) {
+        await api.deleteMedia(saved.id, mediaID);
+        setRemoved((prev) => prev.filter((id) => id !== mediaID));
+      }
+      // Oldest first, so the image shown as primary is the last uploaded and lands first.
+      for (const img of [...images].reverse()) {
+        if (!img.file) continue;
+        saved = await api.addMedia(saved.id, img.file);
+        latest.current = saved;
+        const stored = saved.media[0];
+        setImages((prev) => prev.map((i) => (i === img ? { media: stored } : i)));
+      }
+      onSaved(await api.updateCard(saved.id, input));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the card.");
       setSaving(false);
@@ -82,21 +140,15 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
     }
   };
 
-  const previewCard: Card | null = preview
-    ? {
-        id: "preview",
-        name: name || "New card",
-        notes,
-        artwork: { display_url: preview, thumbnail_url: preview, original_url: preview, width: 0, height: 0 },
-        created_at: "",
-        updated_at: "",
-      }
-    : card
-      ? { ...card, name: name || card.name }
-      : { id: "new", name: name || "New card", notes, artwork: null, created_at: "", updated_at: "" };
+  const primary = images[0]?.media ?? null;
+  const previewCard: Card = { id: card?.id ?? "new", name: name || card?.name || "New card", notes, media: [], created_at: "", updated_at: "" };
+  const gallery = images.slice(1);
+  const pageCount = Math.ceil(gallery.length / GALLERY_PAGE_SIZE);
+  const currentPage = Math.min(page, Math.max(pageCount - 1, 0));
+  const pageImages = gallery.slice(currentPage * GALLERY_PAGE_SIZE, (currentPage + 1) * GALLERY_PAGE_SIZE);
 
   return (
-    <motion.div className="sheet-backdrop" style={blur} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !saving && onClose()}>
+    <motion.div className="sheet-backdrop" style={blur} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !saving && close()}>
       <motion.form
         className="sheet"
         onSubmit={submit}
@@ -108,30 +160,102 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
       >
         <h2>{card ? "Edit card" : "New card"}</h2>
         <div className="editor-grid">
-          <div
-            className={`artwork-drop${dragging ? " dragging" : ""}`}
-            onClick={() => fileInput.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              chooseFile(e.dataTransfer.files[0]);
-            }}
-            role="button"
-            tabIndex={0}
-            aria-label="Choose artwork"
-          >
-            {previewCard && (
+          <div className="artwork-column">
+            <div
+              className={`artwork-drop${dragging ? " dragging" : ""}`}
+              onClick={() => fileInput.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  fileInput.current?.click();
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                addFiles(e.dataTransfer.files);
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Add image"
+            >
               <div className="artwork-preview">
-                <CardFace card={previewCard} />
+                <CardFace card={previewCard} media={primary} />
+              </div>
+              <span className="artwork-hint">Add image</span>
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                multiple
+                hidden
+                onChange={(e) => {
+                  addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
+            {gallery.length > 0 && (
+              <div className="gallery">
+                <ul className="gallery-grid">
+                  <AnimatePresence initial={false} mode="popLayout">
+                    {pageImages.map((img) => (
+                      <motion.li
+                        key={img.media.id}
+                        className="gallery-item"
+                        layout
+                        initial={{ opacity: 0, scale: 0.85 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.85 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 26 }}
+                      >
+                        <img src={img.media.thumbnail_url} alt="" draggable={false} decoding="async" />
+                        <button
+                          type="button"
+                          className="gallery-remove"
+                          onClick={() => removeImage(img)}
+                          disabled={saving}
+                          aria-label="Remove image"
+                        >
+                          ×
+                        </button>
+                      </motion.li>
+                    ))}
+                  </AnimatePresence>
+                </ul>
+                {pageCount > 1 && (
+                  <div className="gallery-pages">
+                    <button
+                      type="button"
+                      className="gallery-page-btn"
+                      onClick={() => setPage(currentPage - 1)}
+                      disabled={currentPage === 0}
+                      aria-label="Previous images"
+                    >
+                      ‹
+                    </button>
+                    <span>
+                      {currentPage + 1} / {pageCount}
+                    </span>
+                    <button
+                      type="button"
+                      className="gallery-page-btn"
+                      onClick={() => setPage(currentPage + 1)}
+                      disabled={currentPage === pageCount - 1}
+                      aria-label="Next images"
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-            <span className="artwork-hint">{previewCard?.artwork ? "Replace artwork" : "Add artwork"}</span>
-            <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => chooseFile(e.target.files?.[0])} />
           </div>
 
           <div className="editor-fields">
@@ -173,7 +297,7 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
               </button>
             ))}
           <span className="spacer" />
-          <button type="button" className="btn btn-quiet" onClick={onClose} disabled={saving}>
+          <button type="button" className="btn btn-quiet" onClick={close} disabled={saving}>
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={saving}>

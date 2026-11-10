@@ -45,6 +45,6 @@ func (Card) Edges() []ent.Edge {
 			Unique().
 			Required().
 			Annotations(entsql.OnDelete(entsql.Cascade)),
-		edge.To("assets", Asset.Type),
+		edge.To("media", Media.Type),
 	}
 }

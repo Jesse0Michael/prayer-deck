@@ -374,21 +374,21 @@ func HasDeckWith(preds ...predicate.Deck) predicate.Card {
 	})
 }
 
-// HasAssets applies the HasEdge predicate on the "assets" edge.
-func HasAssets() predicate.Card {
+// HasMedia applies the HasEdge predicate on the "media" edge.
+func HasMedia() predicate.Card {
 	return predicate.Card(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, AssetsTable, AssetsColumn),
+			sqlgraph.Edge(sqlgraph.O2M, false, MediaTable, MediaColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasAssetsWith applies the HasEdge predicate on the "assets" edge with a given conditions (other predicates).
-func HasAssetsWith(preds ...predicate.Asset) predicate.Card {
+// HasMediaWith applies the HasEdge predicate on the "media" edge with a given conditions (other predicates).
+func HasMediaWith(preds ...predicate.Media) predicate.Card {
 	return predicate.Card(func(s *sql.Selector) {
-		step := newAssetsStep()
+		step := newMediaStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

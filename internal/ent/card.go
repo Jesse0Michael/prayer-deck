@@ -40,8 +40,8 @@ type Card struct {
 type CardEdges struct {
 	// Deck holds the value of the deck edge.
 	Deck *Deck `json:"deck,omitempty"`
-	// Assets holds the value of the assets edge.
-	Assets []*Asset `json:"assets,omitempty"`
+	// Media holds the value of the media edge.
+	Media []*Media `json:"media,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
@@ -58,13 +58,13 @@ func (e CardEdges) DeckOrErr() (*Deck, error) {
 	return nil, &NotLoadedError{edge: "deck"}
 }
 
-// AssetsOrErr returns the Assets value or an error if the edge
+// MediaOrErr returns the Media value or an error if the edge
 // was not loaded in eager-loading.
-func (e CardEdges) AssetsOrErr() ([]*Asset, error) {
+func (e CardEdges) MediaOrErr() ([]*Media, error) {
 	if e.loadedTypes[1] {
-		return e.Assets, nil
+		return e.Media, nil
 	}
-	return nil, &NotLoadedError{edge: "assets"}
+	return nil, &NotLoadedError{edge: "media"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -157,9 +157,9 @@ func (_m *Card) QueryDeck() *DeckQuery {
 	return NewCardClient(_m.config).QueryDeck(_m)
 }
 
-// QueryAssets queries the "assets" edge of the Card entity.
-func (_m *Card) QueryAssets() *AssetQuery {
-	return NewCardClient(_m.config).QueryAssets(_m)
+// QueryMedia queries the "media" edge of the Card entity.
+func (_m *Card) QueryMedia() *MediaQuery {
+	return NewCardClient(_m.config).QueryMedia(_m)
 }
 
 // Update returns a builder for updating this Card.

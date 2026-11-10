@@ -25,6 +25,11 @@ func (Draw) Fields() []ent.Field {
 		// when the draw is read.
 		field.JSON("card_ids", []uuid.UUID{}).
 			Immutable(),
+		// faces maps each dealt card to the media chosen for it, so a resumed
+		// draw shows the same pictures. Cards without media are absent.
+		field.JSON("faces", map[uuid.UUID]uuid.UUID{}).
+			Optional().
+			Immutable(),
 		field.Time("created_at").
 			Default(time.Now).
 			Immutable(),

@@ -30,17 +30,17 @@ const (
 	FieldHeight = "height"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
-	// EdgeCard holds the string denoting the card edge name in mutations.
-	EdgeCard = "card"
+	// EdgeMedia holds the string denoting the media edge name in mutations.
+	EdgeMedia = "media"
 	// Table holds the table name of the asset in the database.
 	Table = "assets"
-	// CardTable is the table that holds the card relation/edge.
-	CardTable = "assets"
-	// CardInverseTable is the table name for the Card entity.
-	// It exists in this package in order to avoid circular dependency with the "card" package.
-	CardInverseTable = "cards"
-	// CardColumn is the table column denoting the card relation/edge.
-	CardColumn = "card_assets"
+	// MediaTable is the table that holds the media relation/edge.
+	MediaTable = "assets"
+	// MediaInverseTable is the table name for the Media entity.
+	// It exists in this package in order to avoid circular dependency with the "media" package.
+	MediaInverseTable = "media"
+	// MediaColumn is the table column denoting the media relation/edge.
+	MediaColumn = "media_assets"
 )
 
 // Columns holds all SQL columns for asset fields.
@@ -58,7 +58,7 @@ var Columns = []string{
 // ForeignKeys holds the SQL foreign-keys that are owned by the "assets"
 // table and are not defined as standalone fields in the schema.
 var ForeignKeys = []string{
-	"card_assets",
+	"media_assets",
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -150,16 +150,16 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
 }
 
-// ByCardField orders the results by card field.
-func ByCardField(field string, opts ...sql.OrderTermOption) OrderOption {
+// ByMediaField orders the results by media field.
+func ByMediaField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCardStep(), sql.OrderByField(field, opts...))
+		sqlgraph.OrderByNeighborTerms(s, newMediaStep(), sql.OrderByField(field, opts...))
 	}
 }
-func newCardStep() *sqlgraph.Step {
+func newMediaStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(CardInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, true, CardTable, CardColumn),
+		sqlgraph.To(MediaInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, MediaTable, MediaColumn),
 	)
 }

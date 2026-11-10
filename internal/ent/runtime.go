@@ -11,6 +11,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
 	"github.com/jesse0michael/prayer-deck/internal/ent/draw"
 	"github.com/jesse0michael/prayer-deck/internal/ent/identity"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 	"github.com/jesse0michael/prayer-deck/internal/ent/schema"
 	"github.com/jesse0michael/prayer-deck/internal/ent/user"
 )
@@ -76,7 +77,7 @@ func init() {
 	drawFields := schema.Draw{}.Fields()
 	_ = drawFields
 	// drawDescCreatedAt is the schema descriptor for created_at field.
-	drawDescCreatedAt := drawFields[2].Descriptor()
+	drawDescCreatedAt := drawFields[3].Descriptor()
 	// draw.DefaultCreatedAt holds the default value on creation for the created_at field.
 	draw.DefaultCreatedAt = drawDescCreatedAt.Default.(func() time.Time)
 	// drawDescID is the schema descriptor for id field.
@@ -93,6 +94,16 @@ func init() {
 	identityDescID := identityFields[0].Descriptor()
 	// identity.DefaultID holds the default value on creation for the id field.
 	identity.DefaultID = identityDescID.Default.(func() uuid.UUID)
+	mediaFields := schema.Media{}.Fields()
+	_ = mediaFields
+	// mediaDescCreatedAt is the schema descriptor for created_at field.
+	mediaDescCreatedAt := mediaFields[2].Descriptor()
+	// media.DefaultCreatedAt holds the default value on creation for the created_at field.
+	media.DefaultCreatedAt = mediaDescCreatedAt.Default.(func() time.Time)
+	// mediaDescID is the schema descriptor for id field.
+	mediaDescID := mediaFields[0].Descriptor()
+	// media.DefaultID holds the default value on creation for the id field.
+	media.DefaultID = mediaDescID.Default.(func() uuid.UUID)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescCreatedAt is the schema descriptor for created_at field.

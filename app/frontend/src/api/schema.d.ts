@@ -289,7 +289,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete a deck with its cards and artwork */
+        /** Delete a deck with its cards and media */
         delete: {
             parameters: {
                 query?: never;
@@ -499,7 +499,7 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /** Delete a card and its artwork */
+        /** Delete a card and its media */
         delete: {
             parameters: {
                 query?: never;
@@ -557,7 +557,7 @@ export interface paths {
         };
         trace?: never;
     };
-    "/v1/cards/{cardID}/artwork": {
+    "/v1/cards/{cardID}/media": {
         parameters: {
             query?: never;
             header?: never;
@@ -567,12 +567,14 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
-         * Replace a card's artwork
-         * @description Stores the upload plus a card-face display rendition and a thumbnail.
+         * Add an image to a card
+         * @description Stores the upload plus a card-face display rendition and a thumbnail,
+         *     as the card's newest media, which makes it the card's primary face.
          *     Accepts PNG, JPEG, WebP, or GIF up to 25 MB.
          */
-        put: {
+        post: {
             parameters: {
                 query?: never;
                 header?: never;
@@ -590,8 +592,8 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Card with its new artwork */
-                200: {
+                /** @description Card with its new media first */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -605,8 +607,48 @@ export interface paths {
                 415: components["responses"]["Error"];
             };
         };
-        post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cards/{cardID}/media/{mediaID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cardID: components["parameters"]["CardID"];
+                mediaID: components["parameters"]["MediaID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a media item from a card */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    cardID: components["parameters"]["CardID"];
+                    mediaID: components["parameters"]["MediaID"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                404: components["responses"]["Error"];
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -784,28 +826,42 @@ export interface components {
             notes?: string;
         };
         /** @description Time-limited URLs to each rendition. Width and height are the display rendition's. */
-        Artwork: {
+        Media: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "image";
             display_url: string;
             thumbnail_url: string;
             original_url: string;
             width: number;
             height: number;
+            /** Format: date-time */
+            created_at: string;
         };
         Card: {
             /** Format: uuid */
             id: string;
             name: string;
             notes: string;
-            artwork: components["schemas"]["Artwork"] | null;
+            /** @description Newest first; the first item is the card's primary face. */
+            media: components["schemas"]["Media"][];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             updated_at: string;
         };
+        DrawnCard: components["schemas"]["Card"] & {
+            /**
+             * @description The media chosen at random for this card when it was dealt.
+             *     Null when the card has no media or the chosen media was deleted.
+             */
+            face: components["schemas"]["Media"] | null;
+        };
         Draw: {
             /** Format: uuid */
             id: string;
-            cards: components["schemas"]["Card"][];
+            cards: components["schemas"]["DrawnCard"][];
             /** @description Cards drawn earlier in the pass, oldest first. */
             discard: components["schemas"]["Card"][];
             /** @description Cards left to draw in the pass. */
@@ -828,6 +884,7 @@ export interface components {
     parameters: {
         DeckID: string;
         CardID: string;
+        MediaID: string;
     };
     requestBodies: never;
     headers: never;

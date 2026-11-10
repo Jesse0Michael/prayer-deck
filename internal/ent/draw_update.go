@@ -79,6 +79,9 @@ func (_u *DrawUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			}
 		}
 	}
+	if _u.mutation.FacesCleared() {
+		_spec.ClearField(draw.FieldFaces, field.TypeJSON)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{draw.Label}
@@ -180,6 +183,9 @@ func (_u *DrawUpdateOne) sqlSave(ctx context.Context) (_node *Draw, err error) {
 				ps[i](selector)
 			}
 		}
+	}
+	if _u.mutation.FacesCleared() {
+		_spec.ClearField(draw.FieldFaces, field.TypeJSON)
 	}
 	_node = &Draw{config: _u.config}
 	_spec.Assign = _node.assignValues

@@ -11,9 +11,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
 	"github.com/jesse0michael/prayer-deck/internal/ent/card"
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 )
 
 // CardCreate is the builder for creating a Card entity.
@@ -110,19 +110,19 @@ func (_c *CardCreate) SetDeck(v *Deck) *CardCreate {
 	return _c.SetDeckID(v.ID)
 }
 
-// AddAssetIDs adds the "assets" edge to the Asset entity by IDs.
-func (_c *CardCreate) AddAssetIDs(ids ...uuid.UUID) *CardCreate {
-	_c.mutation.AddAssetIDs(ids...)
+// AddMediumIDs adds the "media" edge to the Media entity by IDs.
+func (_c *CardCreate) AddMediumIDs(ids ...uuid.UUID) *CardCreate {
+	_c.mutation.AddMediumIDs(ids...)
 	return _c
 }
 
-// AddAssets adds the "assets" edges to the Asset entity.
-func (_c *CardCreate) AddAssets(v ...*Asset) *CardCreate {
+// AddMedia adds the "media" edges to the Media entity.
+func (_c *CardCreate) AddMedia(v ...*Media) *CardCreate {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _c.AddAssetIDs(ids...)
+	return _c.AddMediumIDs(ids...)
 }
 
 // Mutation returns the CardMutation object of the builder.
@@ -265,15 +265,15 @@ func (_c *CardCreate) createSpec() (*Card, *sqlgraph.CreateSpec) {
 		_node.deck_cards = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := _c.mutation.AssetsIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.MediaIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   card.AssetsTable,
-			Columns: []string{card.AssetsColumn},
+			Table:   card.MediaTable,
+			Columns: []string{card.MediaColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(asset.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

@@ -17,6 +17,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
 	"github.com/jesse0michael/prayer-deck/internal/ent/draw"
 	"github.com/jesse0michael/prayer-deck/internal/ent/identity"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 	"github.com/jesse0michael/prayer-deck/internal/ent/user"
 )
 
@@ -83,6 +84,7 @@ func checkColumn(t, c string) error {
 			deck.Table:     deck.ValidColumn,
 			draw.Table:     draw.ValidColumn,
 			identity.Table: identity.ValidColumn,
+			media.Table:    media.ValidColumn,
 			user.Table:     user.ValidColumn,
 		})
 	})
