@@ -28,6 +28,12 @@ func (_c *DrawCreate) SetCardIds(v []uuid.UUID) *DrawCreate {
 	return _c
 }
 
+// SetFaces sets the "faces" field.
+func (_c *DrawCreate) SetFaces(v map[uuid.UUID]uuid.UUID) *DrawCreate {
+	_c.mutation.SetFaces(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *DrawCreate) SetCreatedAt(v time.Time) *DrawCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -161,6 +167,10 @@ func (_c *DrawCreate) createSpec() (*Draw, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CardIds(); ok {
 		_spec.SetField(draw.FieldCardIds, field.TypeJSON, value)
 		_node.CardIds = value
+	}
+	if value, ok := _c.mutation.Faces(); ok {
+		_spec.SetField(draw.FieldFaces, field.TypeJSON, value)
+		_node.Faces = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(draw.FieldCreatedAt, field.TypeTime, value)

@@ -82,7 +82,7 @@ export function ManageView({ api, deck, onDecksChanged }: ManageViewProps) {
       </motion.ul>
 
       {cards?.length === 0 && (
-        <p className="empty-note">Start with the people who come to mind first. You can add artwork now or later.</p>
+        <p className="empty-note">Start with the people who come to mind first. You can add pictures now or later.</p>
       )}
 
       {createPortal(

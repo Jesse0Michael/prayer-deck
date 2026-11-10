@@ -17,7 +17,7 @@ import (
 //go:generate go tool mockgen -destination=mock_store_test.go -package=api github.com/jesse0michael/prayer-deck/internal/store Store
 //go:generate go tool mockgen -destination=mock_storage_test.go -package=api -source=server.go Storage
 
-// Storage holds artwork objects.
+// Storage holds media objects.
 type Storage interface {
 	// Put uploads an object.
 	Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error
@@ -98,7 +98,8 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.Handle("GET /v1/cards/{cardID}", s.authed(s.getCard))
 	mux.Handle("PATCH /v1/cards/{cardID}", s.authed(s.updateCard))
 	mux.Handle("DELETE /v1/cards/{cardID}", s.authed(s.deleteCard))
-	mux.Handle("PUT /v1/cards/{cardID}/artwork", s.authed(s.uploadArtwork))
+	mux.Handle("POST /v1/cards/{cardID}/media", s.authed(s.addMedia))
+	mux.Handle("DELETE /v1/cards/{cardID}/media/{mediaID}", s.authed(s.deleteMedia))
 
 	mux.Handle("POST /v1/decks/{deckID}/draws", s.authed(s.drawCards))
 	mux.Handle("GET /v1/decks/{deckID}/draws/current", s.authed(s.currentDraw))

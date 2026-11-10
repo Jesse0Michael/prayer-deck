@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
-	"github.com/jesse0michael/prayer-deck/internal/ent/card"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 )
 
 // Asset is the model entity for the Asset schema.
@@ -36,28 +36,28 @@ type Asset struct {
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the AssetQuery when eager-loading is set.
 	Edges        AssetEdges `json:"edges"`
-	card_assets  *uuid.UUID
+	media_assets *uuid.UUID
 	selectValues sql.SelectValues
 }
 
 // AssetEdges holds the relations/edges for other nodes in the graph.
 type AssetEdges struct {
-	// Card holds the value of the card edge.
-	Card *Card `json:"card,omitempty"`
+	// Media holds the value of the media edge.
+	Media *Media `json:"media,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
 }
 
-// CardOrErr returns the Card value or an error if the edge
+// MediaOrErr returns the Media value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
-func (e AssetEdges) CardOrErr() (*Card, error) {
-	if e.Card != nil {
-		return e.Card, nil
+func (e AssetEdges) MediaOrErr() (*Media, error) {
+	if e.Media != nil {
+		return e.Media, nil
 	} else if e.loadedTypes[0] {
-		return nil, &NotFoundError{label: card.Label}
+		return nil, &NotFoundError{label: media.Label}
 	}
-	return nil, &NotLoadedError{edge: "card"}
+	return nil, &NotLoadedError{edge: "media"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -73,7 +73,7 @@ func (*Asset) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullTime)
 		case asset.FieldID:
 			values[i] = new(uuid.UUID)
-		case asset.ForeignKeys[0]: // card_assets
+		case asset.ForeignKeys[0]: // media_assets
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			values[i] = new(sql.UnknownType)
@@ -140,10 +140,10 @@ func (_m *Asset) assignValues(columns []string, values []any) error {
 			}
 		case asset.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field card_assets", values[i])
+				return fmt.Errorf("unexpected type %T for field media_assets", values[i])
 			} else if value.Valid {
-				_m.card_assets = new(uuid.UUID)
-				*_m.card_assets = *value.S.(*uuid.UUID)
+				_m.media_assets = new(uuid.UUID)
+				*_m.media_assets = *value.S.(*uuid.UUID)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -158,9 +158,9 @@ func (_m *Asset) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
-// QueryCard queries the "card" edge of the Asset entity.
-func (_m *Asset) QueryCard() *CardQuery {
-	return NewAssetClient(_m.config).QueryCard(_m)
+// QueryMedia queries the "media" edge of the Asset entity.
+func (_m *Asset) QueryMedia() *MediaQuery {
+	return NewAssetClient(_m.config).QueryMedia(_m)
 }
 
 // Update returns a builder for updating this Asset.

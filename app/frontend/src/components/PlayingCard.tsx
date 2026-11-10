@@ -1,11 +1,11 @@
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import type { PointerEvent } from "react";
-import type { Card } from "../api/types";
+import type { DealtCard } from "../api/types";
 import { CardBack } from "./CardBack";
 import { CardFace } from "./CardFace";
 
 interface PlayingCardProps {
-  card?: Card;
+  card?: DealtCard;
   faceUp: boolean;
   width: number;
   /** Tilts toward the pointer and lifts on hover or press. */

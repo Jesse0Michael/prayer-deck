@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
-	"github.com/jesse0michael/prayer-deck/internal/ent/card"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 )
 
 // AssetCreate is the builder for creating a Asset entity.
@@ -86,15 +86,15 @@ func (_c *AssetCreate) SetNillableID(v *uuid.UUID) *AssetCreate {
 	return _c
 }
 
-// SetCardID sets the "card" edge to the Card entity by ID.
-func (_c *AssetCreate) SetCardID(id uuid.UUID) *AssetCreate {
-	_c.mutation.SetCardID(id)
+// SetMediaID sets the "media" edge to the Media entity by ID.
+func (_c *AssetCreate) SetMediaID(id uuid.UUID) *AssetCreate {
+	_c.mutation.SetMediaID(id)
 	return _c
 }
 
-// SetCard sets the "card" edge to the Card entity.
-func (_c *AssetCreate) SetCard(v *Card) *AssetCreate {
-	return _c.SetCardID(v.ID)
+// SetMedia sets the "media" edge to the Media entity.
+func (_c *AssetCreate) SetMedia(v *Media) *AssetCreate {
+	return _c.SetMediaID(v.ID)
 }
 
 // Mutation returns the AssetMutation object of the builder.
@@ -170,8 +170,8 @@ func (_c *AssetCreate) check() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Asset.created_at"`)}
 	}
-	if len(_c.mutation.CardIDs()) == 0 {
-		return &ValidationError{Name: "card", err: errors.New(`ent: missing required edge "Asset.card"`)}
+	if len(_c.mutation.MediaIDs()) == 0 {
+		return &ValidationError{Name: "media", err: errors.New(`ent: missing required edge "Asset.media"`)}
 	}
 	return nil
 }
@@ -236,21 +236,21 @@ func (_c *AssetCreate) createSpec() (*Asset, *sqlgraph.CreateSpec) {
 		_spec.SetField(asset.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
-	if nodes := _c.mutation.CardIDs(); len(nodes) > 0 {
+	if nodes := _c.mutation.MediaIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
 			Inverse: true,
-			Table:   asset.CardTable,
-			Columns: []string{asset.CardColumn},
+			Table:   asset.MediaTable,
+			Columns: []string{asset.MediaColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(card.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.card_assets = &nodes[0]
+		_node.media_assets = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

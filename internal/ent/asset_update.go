@@ -61,8 +61,8 @@ func (_u *AssetUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *AssetUpdate) check() error {
-	if _u.mutation.CardCleared() && len(_u.mutation.CardIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Asset.card"`)
+	if _u.mutation.MediaCleared() && len(_u.mutation.MediaIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Asset.media"`)
 	}
 	return nil
 }
@@ -146,8 +146,8 @@ func (_u *AssetUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *AssetUpdateOne) check() error {
-	if _u.mutation.CardCleared() && len(_u.mutation.CardIDs()) > 0 {
-		return errors.New(`ent: clearing a required unique edge "Asset.card"`)
+	if _u.mutation.MediaCleared() && len(_u.mutation.MediaIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Asset.media"`)
 	}
 	return nil
 }

@@ -1,4 +1,9 @@
-import type { Card } from "../api/types";
+import type { DealtCard, Media } from "../api/types";
+
+/** The media a card shows: the face it was dealt with, otherwise its newest. */
+export function faceOf(card: DealtCard): Media | null {
+  return card.face ?? card.media[0] ?? null;
+}
 
 const decoded = new Map<string, Promise<void>>();
 
@@ -18,7 +23,10 @@ export function preloadImage(url: string): Promise<void> {
 }
 
 /** Preloads every card face, giving up after timeoutMs so a slow network never blocks the deal. */
-export async function preloadFaces(cards: Card[], timeoutMs = 6000): Promise<void> {
-  const loads = cards.flatMap((c) => (c.artwork ? [preloadImage(c.artwork.display_url)] : []));
+export async function preloadFaces(cards: DealtCard[], timeoutMs = 6000): Promise<void> {
+  const loads = cards.flatMap((c) => {
+    const face = faceOf(c);
+    return face ? [preloadImage(face.display_url)] : [];
+  });
   await Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, timeoutMs))]);
 }

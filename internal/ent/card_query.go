@@ -13,9 +13,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
 	"github.com/jesse0michael/prayer-deck/internal/ent/card"
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 	"github.com/jesse0michael/prayer-deck/internal/ent/predicate"
 )
 
@@ -27,7 +27,7 @@ type CardQuery struct {
 	inters     []Interceptor
 	predicates []predicate.Card
 	withDeck   *DeckQuery
-	withAssets *AssetQuery
+	withMedia  *MediaQuery
 	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -87,9 +87,9 @@ func (_q *CardQuery) QueryDeck() *DeckQuery {
 	return query
 }
 
-// QueryAssets chains the current query on the "assets" edge.
-func (_q *CardQuery) QueryAssets() *AssetQuery {
-	query := (&AssetClient{config: _q.config}).Query()
+// QueryMedia chains the current query on the "media" edge.
+func (_q *CardQuery) QueryMedia() *MediaQuery {
+	query := (&MediaClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -100,8 +100,8 @@ func (_q *CardQuery) QueryAssets() *AssetQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(card.Table, card.FieldID, selector),
-			sqlgraph.To(asset.Table, asset.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, card.AssetsTable, card.AssetsColumn),
+			sqlgraph.To(media.Table, media.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, card.MediaTable, card.MediaColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -302,7 +302,7 @@ func (_q *CardQuery) Clone() *CardQuery {
 		inters:     append([]Interceptor{}, _q.inters...),
 		predicates: append([]predicate.Card{}, _q.predicates...),
 		withDeck:   _q.withDeck.Clone(),
-		withAssets: _q.withAssets.Clone(),
+		withMedia:  _q.withMedia.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -320,14 +320,14 @@ func (_q *CardQuery) WithDeck(opts ...func(*DeckQuery)) *CardQuery {
 	return _q
 }
 
-// WithAssets tells the query-builder to eager-load the nodes that are connected to
-// the "assets" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *CardQuery) WithAssets(opts ...func(*AssetQuery)) *CardQuery {
-	query := (&AssetClient{config: _q.config}).Query()
+// WithMedia tells the query-builder to eager-load the nodes that are connected to
+// the "media" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *CardQuery) WithMedia(opts ...func(*MediaQuery)) *CardQuery {
+	query := (&MediaClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withAssets = query
+	_q.withMedia = query
 	return _q
 }
 
@@ -412,7 +412,7 @@ func (_q *CardQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Card, e
 		_spec       = _q.querySpec()
 		loadedTypes = [2]bool{
 			_q.withDeck != nil,
-			_q.withAssets != nil,
+			_q.withMedia != nil,
 		}
 	)
 	if _q.withDeck != nil {
@@ -445,10 +445,10 @@ func (_q *CardQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Card, e
 			return nil, err
 		}
 	}
-	if query := _q.withAssets; query != nil {
-		if err := _q.loadAssets(ctx, query, nodes,
-			func(n *Card) { n.Edges.Assets = []*Asset{} },
-			func(n *Card, e *Asset) { n.Edges.Assets = append(n.Edges.Assets, e) }); err != nil {
+	if query := _q.withMedia; query != nil {
+		if err := _q.loadMedia(ctx, query, nodes,
+			func(n *Card) { n.Edges.Media = []*Media{} },
+			func(n *Card, e *Media) { n.Edges.Media = append(n.Edges.Media, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -487,7 +487,7 @@ func (_q *CardQuery) loadDeck(ctx context.Context, query *DeckQuery, nodes []*Ca
 	}
 	return nil
 }
-func (_q *CardQuery) loadAssets(ctx context.Context, query *AssetQuery, nodes []*Card, init func(*Card), assign func(*Card, *Asset)) error {
+func (_q *CardQuery) loadMedia(ctx context.Context, query *MediaQuery, nodes []*Card, init func(*Card), assign func(*Card, *Media)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[uuid.UUID]*Card)
 	for i := range nodes {
@@ -498,21 +498,21 @@ func (_q *CardQuery) loadAssets(ctx context.Context, query *AssetQuery, nodes []
 		}
 	}
 	query.withFKs = true
-	query.Where(predicate.Asset(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(card.AssetsColumn), fks...))
+	query.Where(predicate.Media(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(card.MediaColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.card_assets
+		fk := n.card_media
 		if fk == nil {
-			return fmt.Errorf(`foreign-key "card_assets" is nil for node %v`, n.ID)
+			return fmt.Errorf(`foreign-key "card_media" is nil for node %v`, n.ID)
 		}
 		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "card_assets" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "card_media" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

@@ -12,9 +12,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
 	"github.com/jesse0michael/prayer-deck/internal/ent/card"
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 	"github.com/jesse0michael/prayer-deck/internal/ent/predicate"
 )
 
@@ -102,19 +102,19 @@ func (_u *CardUpdate) SetDeck(v *Deck) *CardUpdate {
 	return _u.SetDeckID(v.ID)
 }
 
-// AddAssetIDs adds the "assets" edge to the Asset entity by IDs.
-func (_u *CardUpdate) AddAssetIDs(ids ...uuid.UUID) *CardUpdate {
-	_u.mutation.AddAssetIDs(ids...)
+// AddMediumIDs adds the "media" edge to the Media entity by IDs.
+func (_u *CardUpdate) AddMediumIDs(ids ...uuid.UUID) *CardUpdate {
+	_u.mutation.AddMediumIDs(ids...)
 	return _u
 }
 
-// AddAssets adds the "assets" edges to the Asset entity.
-func (_u *CardUpdate) AddAssets(v ...*Asset) *CardUpdate {
+// AddMedia adds the "media" edges to the Media entity.
+func (_u *CardUpdate) AddMedia(v ...*Media) *CardUpdate {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddAssetIDs(ids...)
+	return _u.AddMediumIDs(ids...)
 }
 
 // Mutation returns the CardMutation object of the builder.
@@ -128,25 +128,25 @@ func (_u *CardUpdate) ClearDeck() *CardUpdate {
 	return _u
 }
 
-// ClearAssets clears all "assets" edges to the Asset entity.
-func (_u *CardUpdate) ClearAssets() *CardUpdate {
-	_u.mutation.ClearAssets()
+// ClearMedia clears all "media" edges to the Media entity.
+func (_u *CardUpdate) ClearMedia() *CardUpdate {
+	_u.mutation.ClearMedia()
 	return _u
 }
 
-// RemoveAssetIDs removes the "assets" edge to Asset entities by IDs.
-func (_u *CardUpdate) RemoveAssetIDs(ids ...uuid.UUID) *CardUpdate {
-	_u.mutation.RemoveAssetIDs(ids...)
+// RemoveMediumIDs removes the "media" edge to Media entities by IDs.
+func (_u *CardUpdate) RemoveMediumIDs(ids ...uuid.UUID) *CardUpdate {
+	_u.mutation.RemoveMediumIDs(ids...)
 	return _u
 }
 
-// RemoveAssets removes "assets" edges to Asset entities.
-func (_u *CardUpdate) RemoveAssets(v ...*Asset) *CardUpdate {
+// RemoveMedia removes "media" edges to Media entities.
+func (_u *CardUpdate) RemoveMedia(v ...*Media) *CardUpdate {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveAssetIDs(ids...)
+	return _u.RemoveMediumIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -257,28 +257,28 @@ func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.AssetsCleared() {
+	if _u.mutation.MediaCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   card.AssetsTable,
-			Columns: []string{card.AssetsColumn},
+			Table:   card.MediaTable,
+			Columns: []string{card.MediaColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(asset.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedAssetsIDs(); len(nodes) > 0 && !_u.mutation.AssetsCleared() {
+	if nodes := _u.mutation.RemovedMediaIDs(); len(nodes) > 0 && !_u.mutation.MediaCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   card.AssetsTable,
-			Columns: []string{card.AssetsColumn},
+			Table:   card.MediaTable,
+			Columns: []string{card.MediaColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(asset.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -286,15 +286,15 @@ func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.AssetsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.MediaIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   card.AssetsTable,
-			Columns: []string{card.AssetsColumn},
+			Table:   card.MediaTable,
+			Columns: []string{card.MediaColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(asset.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -393,19 +393,19 @@ func (_u *CardUpdateOne) SetDeck(v *Deck) *CardUpdateOne {
 	return _u.SetDeckID(v.ID)
 }
 
-// AddAssetIDs adds the "assets" edge to the Asset entity by IDs.
-func (_u *CardUpdateOne) AddAssetIDs(ids ...uuid.UUID) *CardUpdateOne {
-	_u.mutation.AddAssetIDs(ids...)
+// AddMediumIDs adds the "media" edge to the Media entity by IDs.
+func (_u *CardUpdateOne) AddMediumIDs(ids ...uuid.UUID) *CardUpdateOne {
+	_u.mutation.AddMediumIDs(ids...)
 	return _u
 }
 
-// AddAssets adds the "assets" edges to the Asset entity.
-func (_u *CardUpdateOne) AddAssets(v ...*Asset) *CardUpdateOne {
+// AddMedia adds the "media" edges to the Media entity.
+func (_u *CardUpdateOne) AddMedia(v ...*Media) *CardUpdateOne {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.AddAssetIDs(ids...)
+	return _u.AddMediumIDs(ids...)
 }
 
 // Mutation returns the CardMutation object of the builder.
@@ -419,25 +419,25 @@ func (_u *CardUpdateOne) ClearDeck() *CardUpdateOne {
 	return _u
 }
 
-// ClearAssets clears all "assets" edges to the Asset entity.
-func (_u *CardUpdateOne) ClearAssets() *CardUpdateOne {
-	_u.mutation.ClearAssets()
+// ClearMedia clears all "media" edges to the Media entity.
+func (_u *CardUpdateOne) ClearMedia() *CardUpdateOne {
+	_u.mutation.ClearMedia()
 	return _u
 }
 
-// RemoveAssetIDs removes the "assets" edge to Asset entities by IDs.
-func (_u *CardUpdateOne) RemoveAssetIDs(ids ...uuid.UUID) *CardUpdateOne {
-	_u.mutation.RemoveAssetIDs(ids...)
+// RemoveMediumIDs removes the "media" edge to Media entities by IDs.
+func (_u *CardUpdateOne) RemoveMediumIDs(ids ...uuid.UUID) *CardUpdateOne {
+	_u.mutation.RemoveMediumIDs(ids...)
 	return _u
 }
 
-// RemoveAssets removes "assets" edges to Asset entities.
-func (_u *CardUpdateOne) RemoveAssets(v ...*Asset) *CardUpdateOne {
+// RemoveMedia removes "media" edges to Media entities.
+func (_u *CardUpdateOne) RemoveMedia(v ...*Media) *CardUpdateOne {
 	ids := make([]uuid.UUID, len(v))
 	for i := range v {
 		ids[i] = v[i].ID
 	}
-	return _u.RemoveAssetIDs(ids...)
+	return _u.RemoveMediumIDs(ids...)
 }
 
 // Where appends a list predicates to the CardUpdate builder.
@@ -578,28 +578,28 @@ func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if _u.mutation.AssetsCleared() {
+	if _u.mutation.MediaCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   card.AssetsTable,
-			Columns: []string{card.AssetsColumn},
+			Table:   card.MediaTable,
+			Columns: []string{card.MediaColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(asset.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.RemovedAssetsIDs(); len(nodes) > 0 && !_u.mutation.AssetsCleared() {
+	if nodes := _u.mutation.RemovedMediaIDs(); len(nodes) > 0 && !_u.mutation.MediaCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   card.AssetsTable,
-			Columns: []string{card.AssetsColumn},
+			Table:   card.MediaTable,
+			Columns: []string{card.MediaColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(asset.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -607,15 +607,15 @@ func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := _u.mutation.AssetsIDs(); len(nodes) > 0 {
+	if nodes := _u.mutation.MediaIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   card.AssetsTable,
-			Columns: []string{card.AssetsColumn},
+			Table:   card.MediaTable,
+			Columns: []string{card.MediaColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(asset.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

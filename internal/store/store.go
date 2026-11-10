@@ -1,5 +1,5 @@
 // Package store is the persistence seam for Prayer Deck: accounts, decks,
-// cards, artwork records, and draws, backed by ent. Every read and write is
+// cards, media, and draws, backed by ent. Every read and write is
 // scoped to the requesting user, so another user's records look like they
 // do not exist.
 package store
@@ -19,6 +19,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
 	"github.com/jesse0michael/prayer-deck/internal/ent/draw"
 	"github.com/jesse0michael/prayer-deck/internal/ent/identity"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 	"github.com/jesse0michael/prayer-deck/internal/ent/predicate"
 	"github.com/jesse0michael/prayer-deck/internal/ent/user"
 )
@@ -63,7 +64,14 @@ type CardInput struct {
 	Notes *string
 }
 
-// AssetInput describes one stored artwork rendition.
+// MediaInput describes a new media item and its stored renditions.
+type MediaInput struct {
+	ID     uuid.UUID
+	Kind   media.Kind
+	Assets []AssetInput
+}
+
+// AssetInput describes one stored rendition of a media item.
 type AssetInput struct {
 	ID          uuid.UUID
 	Rendition   asset.Rendition
@@ -74,7 +82,7 @@ type AssetInput struct {
 	Height      int
 }
 
-// Draw is a dealt hand with its cards in dealt order.
+// Draw is a dealt hand with its cards in dealt order. Faces names the media dealt for each card.
 type Draw struct {
 	*ent.Draw
 	Cards []*ent.Card
@@ -99,27 +107,29 @@ type Store interface {
 	CreateDeck(ctx context.Context, userID uuid.UUID, name string) (*Deck, error)
 	// RenameDeck changes a deck's name.
 	RenameDeck(ctx context.Context, userID, deckID uuid.UUID, name string) (*Deck, error)
-	// DeleteDeck removes a deck and its cards, returning the artwork keys to remove from storage.
+	// DeleteDeck removes a deck and its cards, returning the media keys to remove from storage.
 	DeleteDeck(ctx context.Context, userID, deckID uuid.UUID) ([]string, error)
 	// Shuffle returns every card in the deck to the draw pool.
 	Shuffle(ctx context.Context, userID, deckID uuid.UUID) (*Deck, error)
 
-	// Cards lists a deck's cards with artwork, ordered by name.
+	// Cards lists a deck's cards with their media newest first, ordered by name.
 	Cards(ctx context.Context, userID, deckID uuid.UUID) ([]*ent.Card, error)
-	// Card returns a single card with artwork.
+	// Card returns a single card with its media newest first.
 	Card(ctx context.Context, userID, cardID uuid.UUID) (*ent.Card, error)
 	// CreateCard adds a card to a deck.
 	CreateCard(ctx context.Context, userID, deckID uuid.UUID, in CardInput) (*ent.Card, error)
 	// UpdateCard changes the non-nil fields of a card.
 	UpdateCard(ctx context.Context, userID, cardID uuid.UUID, in CardInput) (*ent.Card, error)
-	// DeleteCard removes a card, returning the artwork keys to remove from storage.
+	// DeleteCard removes a card, returning the media keys to remove from storage.
 	DeleteCard(ctx context.Context, userID, cardID uuid.UUID) ([]string, error)
-	// ReplaceArtwork swaps a card's artwork for the given renditions, returning
-	// the card and the replaced artwork keys to remove from storage.
-	ReplaceArtwork(ctx context.Context, userID, cardID uuid.UUID, assets []AssetInput) (*ent.Card, []string, error)
+	// AddMedia adds a media item to a card, making it the card's primary face.
+	AddMedia(ctx context.Context, userID, cardID uuid.UUID, in MediaInput) (*ent.Card, error)
+	// DeleteMedia removes a card's media item, returning the keys to remove from storage.
+	DeleteMedia(ctx context.Context, userID, cardID, mediaID uuid.UUID) ([]string, error)
 
-	// Draw deals up to count cards from the current pass through the deck and
-	// replaces the deck's current draw. With reshuffle set, a fresh pass starts first.
+	// Draw deals up to count cards from the current pass through the deck, choosing
+	// one of each card's media at random, and replaces the deck's current draw.
+	// With reshuffle set, a fresh pass starts first.
 	Draw(ctx context.Context, userID, deckID uuid.UUID, count int, reshuffle bool) (*Draw, error)
 	// CurrentDraw returns the deck's most recent draw.
 	CurrentDraw(ctx context.Context, userID, deckID uuid.UUID) (*Draw, error)
@@ -127,14 +137,16 @@ type Store interface {
 
 type entStore struct {
 	client *ent.Client
-	// shuffle randomizes draw order; tests replace it to make draws deterministic.
+	// shuffle randomizes draw order and pick chooses a dealt card's face; tests
+	// replace both to make draws deterministic.
 	shuffle func(n int, swap func(i, j int))
+	pick    func(n int) int
 	now     func() time.Time
 }
 
 // New returns an ent-backed Store.
 func New(client *ent.Client) Store {
-	return &entStore{client: client, shuffle: rand.Shuffle, now: time.Now}
+	return &entStore{client: client, shuffle: rand.Shuffle, pick: rand.IntN, now: time.Now}
 }
 
 func (s *entStore) ResolveIdentity(ctx context.Context, in Identity) (*ent.User, error) {
@@ -260,18 +272,19 @@ func (s *entStore) DeleteDeck(ctx context.Context, userID, deckID uuid.UUID) ([]
 		return nil, rollback(tx, fmt.Errorf("%w: an account keeps at least one deck", ErrConflict))
 	}
 
-	keys, err := tx.Asset.Query().
-		Where(asset.HasCardWith(card.HasDeckWith(deck.ID(deckID)))).
-		Select(asset.FieldKey).
-		Strings(ctx)
+	inDeck := asset.HasMediaWith(media.HasCardWith(card.HasDeckWith(deck.ID(deckID))))
+	keys, err := tx.Asset.Query().Where(inDeck).Select(asset.FieldKey).Strings(ctx)
 	if err != nil {
-		return nil, rollback(tx, fmt.Errorf("failed to list deck artwork: %w", err))
+		return nil, rollback(tx, fmt.Errorf("failed to list deck media: %w", err))
 	}
 
 	// Children are removed explicitly because sqlite only honors FK cascades
 	// when foreign keys are enabled on the connection.
-	if _, err := tx.Asset.Delete().Where(asset.HasCardWith(card.HasDeckWith(deck.ID(deckID)))).Exec(ctx); err != nil {
-		return nil, rollback(tx, fmt.Errorf("failed to delete deck artwork: %w", err))
+	if _, err := tx.Asset.Delete().Where(inDeck).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to delete deck assets: %w", err))
+	}
+	if _, err := tx.Media.Delete().Where(media.HasCardWith(card.HasDeckWith(deck.ID(deckID)))).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to delete deck media: %w", err))
 	}
 	if _, err := tx.Card.Delete().Where(card.HasDeckWith(deck.ID(deckID))).Exec(ctx); err != nil {
 		return nil, rollback(tx, fmt.Errorf("failed to delete deck cards: %w", err))
@@ -311,7 +324,7 @@ func (s *entStore) Cards(ctx context.Context, userID, deckID uuid.UUID) ([]*ent.
 
 	cards, err := s.client.Card.Query().
 		Where(card.HasDeckWith(deck.ID(deckID))).
-		WithAssets().
+		WithMedia(withAssets).
 		Order(ent.Asc(card.FieldName), ent.Asc(card.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -375,10 +388,13 @@ func (s *entStore) DeleteCard(ctx context.Context, userID, cardID uuid.UUID) ([]
 	if err != nil {
 		return nil, rollback(tx, err)
 	}
-	keys := assetKeys(c.Edges.Assets)
+	keys := mediaKeys(c.Edges.Media)
 
-	if _, err := tx.Asset.Delete().Where(asset.HasCardWith(card.ID(cardID))).Exec(ctx); err != nil {
-		return nil, rollback(tx, fmt.Errorf("failed to delete card artwork: %w", err))
+	if _, err := tx.Asset.Delete().Where(asset.HasMediaWith(media.HasCardWith(card.ID(cardID)))).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to delete card assets: %w", err))
+	}
+	if _, err := tx.Media.Delete().Where(media.HasCardWith(card.ID(cardID))).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to delete card media: %w", err))
 	}
 	if err := tx.Card.DeleteOneID(cardID).Exec(ctx); err != nil {
 		return nil, rollback(tx, fmt.Errorf("failed to delete card: %w", err))
@@ -387,49 +403,78 @@ func (s *entStore) DeleteCard(ctx context.Context, userID, cardID uuid.UUID) ([]
 	return keys, commit(tx)
 }
 
-func (s *entStore) ReplaceArtwork(ctx context.Context, userID, cardID uuid.UUID, assets []AssetInput) (*ent.Card, []string, error) {
+func (s *entStore) AddMedia(ctx context.Context, userID, cardID uuid.UUID, in MediaInput) (*ent.Card, error) {
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open transaction: %w", err)
+		return nil, fmt.Errorf("failed to open transaction: %w", err)
 	}
 
-	c, err := s.card(ctx, tx.Client(), userID, cardID)
-	if err != nil {
-		return nil, nil, rollback(tx, err)
+	if _, err := s.card(ctx, tx.Client(), userID, cardID); err != nil {
+		return nil, rollback(tx, err)
 	}
-	replaced := assetKeys(c.Edges.Assets)
 
-	if _, err := tx.Asset.Delete().Where(asset.HasCardWith(card.ID(cardID))).Exec(ctx); err != nil {
-		return nil, nil, rollback(tx, fmt.Errorf("failed to delete previous artwork: %w", err))
+	now := s.timestamp()
+	if err := tx.Media.Create().
+		SetID(in.ID).
+		SetCardID(cardID).
+		SetKind(in.Kind).
+		SetCreatedAt(now).
+		Exec(ctx); err != nil {
+		return nil, rollback(tx, mapError("failed to save media", err))
 	}
-	creates := make([]*ent.AssetCreate, len(assets))
-	for i, a := range assets {
+	creates := make([]*ent.AssetCreate, len(in.Assets))
+	for i, a := range in.Assets {
 		creates[i] = tx.Asset.Create().
 			SetID(a.ID).
-			SetCardID(cardID).
+			SetMediaID(in.ID).
 			SetRendition(a.Rendition).
 			SetKey(a.Key).
 			SetContentType(a.ContentType).
 			SetSize(a.Size).
 			SetWidth(a.Width).
-			SetHeight(a.Height)
+			SetHeight(a.Height).
+			SetCreatedAt(now)
 	}
 	if _, err := tx.Asset.CreateBulk(creates...).Save(ctx); err != nil {
-		return nil, nil, rollback(tx, fmt.Errorf("failed to save artwork: %w", err))
+		return nil, rollback(tx, mapError("failed to save media assets", err))
 	}
-	// Touch the card so clients see the artwork change in updated_at.
-	if err := tx.Card.UpdateOneID(cardID).SetUpdatedAt(s.timestamp()).Exec(ctx); err != nil {
-		return nil, nil, rollback(tx, fmt.Errorf("failed to touch card: %w", err))
+	// Touch the card so clients see the media change in updated_at.
+	if err := tx.Card.UpdateOneID(cardID).SetUpdatedAt(now).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to touch card: %w", err))
 	}
 	if err := commit(tx); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	c, err = s.card(ctx, s.client, userID, cardID)
+	return s.card(ctx, s.client, userID, cardID)
+}
+
+func (s *entStore) DeleteMedia(ctx context.Context, userID, cardID, mediaID uuid.UUID) ([]string, error) {
+	tx, err := s.client.Tx(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, fmt.Errorf("failed to open transaction: %w", err)
 	}
-	return c, replaced, nil
+
+	m, err := tx.Media.Query().
+		Where(media.ID(mediaID), media.HasCardWith(card.ID(cardID), ownedCard(userID))).
+		WithAssets().
+		Only(ctx)
+	if err != nil {
+		return nil, rollback(tx, mapError("failed to get media", err))
+	}
+	keys := mediaKeys([]*ent.Media{m})
+
+	if _, err := tx.Asset.Delete().Where(asset.HasMediaWith(media.ID(mediaID))).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to delete media assets: %w", err))
+	}
+	if err := tx.Media.DeleteOneID(mediaID).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to delete media: %w", err))
+	}
+	if err := tx.Card.UpdateOneID(cardID).SetUpdatedAt(s.timestamp()).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to touch card: %w", err))
+	}
+
+	return keys, commit(tx)
 }
 
 func (s *entStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int, reshuffle bool) (*Draw, error) {
@@ -444,6 +489,7 @@ func (s *entStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int
 	}
 	cards, err := tx.Card.Query().
 		Where(card.HasDeckWith(deck.ID(deckID))).
+		WithMedia(func(q *ent.MediaQuery) { q.Order(newestFirst...) }).
 		Order(ent.Asc(card.FieldCreatedAt), ent.Asc(card.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -477,8 +523,12 @@ func (s *entStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int
 	remaining := len(pool) - len(hand)
 
 	ids := make([]uuid.UUID, len(hand))
+	faces := make(map[uuid.UUID]uuid.UUID, len(hand))
 	for i, c := range hand {
 		ids[i] = c.ID
+		if len(c.Edges.Media) > 0 {
+			faces[c.ID] = c.Edges.Media[s.pick(len(c.Edges.Media))].ID
+		}
 	}
 	if err := tx.Card.Update().Where(card.IDIn(ids...)).SetLastDrawnAt(now).Exec(ctx); err != nil {
 		return nil, rollback(tx, fmt.Errorf("failed to mark cards drawn: %w", err))
@@ -486,7 +536,7 @@ func (s *entStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int
 	if _, err := tx.Draw.Delete().Where(draw.HasDeckWith(deck.ID(deckID))).Exec(ctx); err != nil {
 		return nil, rollback(tx, fmt.Errorf("failed to clear previous draw: %w", err))
 	}
-	dr, err := tx.Draw.Create().SetDeckID(deckID).SetCardIds(ids).SetCreatedAt(now).Save(ctx)
+	dr, err := tx.Draw.Create().SetDeckID(deckID).SetCardIds(ids).SetFaces(faces).SetCreatedAt(now).Save(ctx)
 	if err != nil {
 		return nil, rollback(tx, fmt.Errorf("failed to save draw: %w", err))
 	}
@@ -535,7 +585,7 @@ func (s *entStore) CurrentDraw(ctx context.Context, userID, deckID uuid.UUID) (*
 func (s *entStore) discard(ctx context.Context, deckID uuid.UUID, shuffledAt time.Time, hand []uuid.UUID) ([]*ent.Card, error) {
 	cards, err := s.client.Card.Query().
 		Where(card.HasDeckWith(deck.ID(deckID)), card.LastDrawnAtGTE(shuffledAt), card.IDNotIn(hand...)).
-		WithAssets().
+		WithMedia(withAssets).
 		Order(ent.Asc(card.FieldLastDrawnAt), ent.Asc(card.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -544,9 +594,9 @@ func (s *entStore) discard(ctx context.Context, deckID uuid.UUID, shuffledAt tim
 	return cards, nil
 }
 
-// cardsInOrder loads cards with artwork in the order of ids, skipping any since deleted.
+// cardsInOrder loads cards with media in the order of ids, skipping any since deleted.
 func (s *entStore) cardsInOrder(ctx context.Context, ids []uuid.UUID) ([]*ent.Card, error) {
-	cards, err := s.client.Card.Query().Where(card.IDIn(ids...)).WithAssets().All(ctx)
+	cards, err := s.client.Card.Query().Where(card.IDIn(ids...)).WithMedia(withAssets).All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load drawn cards: %w", err)
 	}
@@ -577,7 +627,7 @@ func (s *entStore) deck(ctx context.Context, client *ent.Client, userID, deckID 
 func (s *entStore) card(ctx context.Context, client *ent.Client, userID, cardID uuid.UUID) (*ent.Card, error) {
 	c, err := client.Card.Query().
 		Where(card.ID(cardID), ownedCard(userID)).
-		WithAssets().
+		WithMedia(withAssets).
 		Only(ctx)
 	if err != nil {
 		return nil, mapError("failed to get card", err)
@@ -589,6 +639,14 @@ func (s *entStore) card(ctx context.Context, client *ent.Client, userID, cardID 
 // and read back compares equal to the one still held in memory.
 func (s *entStore) timestamp() time.Time {
 	return s.now().UTC().Truncate(time.Microsecond)
+}
+
+// newestFirst orders a card's media so its primary face comes first.
+var newestFirst = []media.OrderOption{ent.Desc(media.FieldCreatedAt), ent.Desc(media.FieldID)}
+
+// withAssets loads a card's media newest first, each with its renditions.
+func withAssets(q *ent.MediaQuery) {
+	q.WithAssets().Order(newestFirst...)
 }
 
 func ownedCard(userID uuid.UUID) predicate.Card {
@@ -611,10 +669,12 @@ func summarize(d *ent.Deck, cards []*ent.Card) *Deck {
 	return &Deck{Deck: d, CardCount: len(cards), Remaining: remaining}
 }
 
-func assetKeys(assets []*ent.Asset) []string {
-	keys := make([]string, len(assets))
-	for i, a := range assets {
-		keys[i] = a.Key
+func mediaKeys(items []*ent.Media) []string {
+	keys := []string{}
+	for _, m := range items {
+		for _, a := range m.Edges.Assets {
+			keys = append(keys, a.Key)
+		}
 	}
 	return keys
 }

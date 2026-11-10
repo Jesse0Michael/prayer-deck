@@ -15,6 +15,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/card"
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
 	"github.com/jesse0michael/prayer-deck/internal/ent/enttest"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 )
@@ -29,18 +30,21 @@ var (
 	card2  = uuid.MustParse("00000000-0000-0000-0000-0000000000c2")
 	card3  = uuid.MustParse("00000000-0000-0000-0000-0000000000c3")
 	card4  = uuid.MustParse("00000000-0000-0000-0000-0000000000c4")
+	media1 = uuid.MustParse("00000000-0000-0000-0000-0000000000b1")
+	media2 = uuid.MustParse("00000000-0000-0000-0000-0000000000b2")
 	asset1 = uuid.MustParse("00000000-0000-0000-0000-0000000000e1")
+	asset2 = uuid.MustParse("00000000-0000-0000-0000-0000000000e2")
 	// t0 is the synctest bubble's starting time, which every fixture timestamp derives from.
 	t0 = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 )
 
 var entOpts = cmp.Options{
-	cmpopts.IgnoreUnexported(ent.User{}, ent.UserEdges{}, ent.Deck{}, ent.DeckEdges{}, ent.Card{}, ent.CardEdges{}, ent.Asset{}, ent.AssetEdges{}, ent.Draw{}, ent.DrawEdges{}),
+	cmpopts.IgnoreUnexported(ent.User{}, ent.UserEdges{}, ent.Deck{}, ent.DeckEdges{}, ent.Card{}, ent.CardEdges{}, ent.Media{}, ent.MediaEdges{}, ent.Asset{}, ent.AssetEdges{}, ent.Draw{}, ent.DrawEdges{}),
 	cmpopts.EquateEmpty(),
 }
 
 // newTestStore opens an in-memory sqlite store seeded with:
-//   - user1 owning deck1 "Family" (card1 Anna with artwork, card2 Ben, card3 Cara) and deck2 "Friends" (empty)
+//   - user1 owning deck1 "Family" (card1 Anna with one image, card2 Ben, card3 Cara) and deck2 "Friends" (empty)
 //   - user2 owning deck3 "Other" (card4 Dan)
 //
 // It must be called inside a synctest bubble so timestamps are deterministic.
@@ -60,20 +64,23 @@ func newTestStore(t *testing.T) (*entStore, *ent.Client) {
 	client.Card.Create().SetID(card2).SetName("Ben").SetDeckID(deck1).ExecX(ctx)
 	client.Card.Create().SetID(card3).SetName("Cara").SetNotes("loves gardening").SetDeckID(deck1).ExecX(ctx)
 	client.Card.Create().SetID(card4).SetName("Dan").SetDeckID(deck3).ExecX(ctx)
-	client.Asset.Create().SetID(asset1).SetCardID(card1).SetRendition(asset.RenditionDisplay).SetKey("cards/c1/display.jpg").
+	client.Media.Create().SetID(media1).SetCardID(card1).SetKind(media.KindImage).ExecX(ctx)
+	client.Asset.Create().SetID(asset1).SetMediaID(media1).SetRendition(asset.RenditionDisplay).SetKey("cards/c1/display.jpg").
 		SetContentType("image/jpeg").SetSize(100).SetWidth(10).SetHeight(15).ExecX(ctx)
 
-	return &entStore{client: client, shuffle: func(int, func(i, j int)) {}, now: time.Now}, client
+	return &entStore{client: client, shuffle: func(int, func(i, j int)) {}, pick: func(n int) int { return n - 1 }, now: time.Now}, client
 }
 
-func testAsset() *ent.Asset {
-	return &ent.Asset{ID: asset1, Rendition: asset.RenditionDisplay, Key: "cards/c1/display.jpg", ContentType: "image/jpeg", Size: 100, Width: 10, Height: 15, CreatedAt: t0}
+func testMedia() *ent.Media {
+	return &ent.Media{ID: media1, Kind: media.KindImage, CreatedAt: t0, Edges: ent.MediaEdges{Assets: []*ent.Asset{
+		{ID: asset1, Rendition: asset.RenditionDisplay, Key: "cards/c1/display.jpg", ContentType: "image/jpeg", Size: 100, Width: 10, Height: 15, CreatedAt: t0},
+	}}}
 }
 
 func testCard(id uuid.UUID) *ent.Card {
 	switch id {
 	case card1:
-		return &ent.Card{ID: card1, Name: "Anna", CreatedAt: t0, UpdatedAt: t0, Edges: ent.CardEdges{Assets: []*ent.Asset{testAsset()}}}
+		return &ent.Card{ID: card1, Name: "Anna", CreatedAt: t0, UpdatedAt: t0, Edges: ent.CardEdges{Media: []*ent.Media{testMedia()}}}
 	case card2:
 		return &ent.Card{ID: card2, Name: "Ben", CreatedAt: t0, UpdatedAt: t0}
 	case card3:
@@ -217,7 +224,7 @@ func TestStore_DeleteDeck(t *testing.T) {
 		wantErr       error
 	}{
 		{
-			name:          "deletes the deck and returns its artwork keys",
+			name:          "deletes the deck and returns its media keys",
 			userID:        user1,
 			deckID:        deck1,
 			expectedKeys:  []string{"cards/c1/display.jpg"},
@@ -353,13 +360,13 @@ func TestStore_DeleteCard(t *testing.T) {
 		wantErr      error
 	}{
 		{
-			name:         "deletes the card and returns its artwork keys",
+			name:         "deletes the card and returns its media keys",
 			userID:       user1,
 			cardID:       card1,
 			expectedKeys: []string{"cards/c1/display.jpg"},
 		},
 		{
-			name:         "card without artwork",
+			name:         "card without media",
 			userID:       user1,
 			cardID:       card2,
 			expectedKeys: []string{},
@@ -385,32 +392,42 @@ func TestStore_DeleteCard(t *testing.T) {
 	}
 }
 
-func TestStore_ReplaceArtwork(t *testing.T) {
-	newAsset := AssetInput{
-		ID:          uuid.MustParse("00000000-0000-0000-0000-0000000000e2"),
-		Rendition:   asset.RenditionThumbnail,
-		Key:         "cards/c1/thumbnail.jpg",
-		ContentType: "image/jpeg",
-		Size:        50,
-		Width:       4,
-		Height:      6,
+func TestStore_AddMedia(t *testing.T) {
+	addTime := t0.Add(time.Hour)
+	in := MediaInput{
+		ID:   media2,
+		Kind: media.KindImage,
+		Assets: []AssetInput{
+			{ID: asset2, Rendition: asset.RenditionThumbnail, Key: "cards/c1/b2/thumbnail.jpg", ContentType: "image/jpeg", Size: 50, Width: 4, Height: 6},
+		},
 	}
 	tests := []struct {
-		name             string
-		userID           uuid.UUID
-		cardID           uuid.UUID
-		expected         *ent.Card
-		expectedReplaced []string
-		wantErr          error
+		name     string
+		userID   uuid.UUID
+		cardID   uuid.UUID
+		expected *ent.Card
+		wantErr  error
 	}{
 		{
-			name:   "replaces existing artwork",
+			name:   "adds the newest media first",
 			userID: user1,
 			cardID: card1,
-			expected: &ent.Card{ID: card1, Name: "Anna", CreatedAt: t0, UpdatedAt: t0, Edges: ent.CardEdges{Assets: []*ent.Asset{
-				{ID: newAsset.ID, Rendition: asset.RenditionThumbnail, Key: "cards/c1/thumbnail.jpg", ContentType: "image/jpeg", Size: 50, Width: 4, Height: 6, CreatedAt: t0},
+			expected: &ent.Card{ID: card1, Name: "Anna", CreatedAt: t0, UpdatedAt: addTime, Edges: ent.CardEdges{Media: []*ent.Media{
+				{ID: media2, Kind: media.KindImage, CreatedAt: addTime, Edges: ent.MediaEdges{Assets: []*ent.Asset{
+					{ID: asset2, Rendition: asset.RenditionThumbnail, Key: "cards/c1/b2/thumbnail.jpg", ContentType: "image/jpeg", Size: 50, Width: 4, Height: 6, CreatedAt: addTime},
+				}}},
+				testMedia(),
 			}}},
-			expectedReplaced: []string{"cards/c1/display.jpg"},
+		},
+		{
+			name:   "first media on a card",
+			userID: user1,
+			cardID: card2,
+			expected: &ent.Card{ID: card2, Name: "Ben", CreatedAt: t0, UpdatedAt: addTime, Edges: ent.CardEdges{Media: []*ent.Media{
+				{ID: media2, Kind: media.KindImage, CreatedAt: addTime, Edges: ent.MediaEdges{Assets: []*ent.Asset{
+					{ID: asset2, Rendition: asset.RenditionThumbnail, Key: "cards/c1/b2/thumbnail.jpg", ContentType: "image/jpeg", Size: 50, Width: 4, Height: 6, CreatedAt: addTime},
+				}}},
+			}}},
 		},
 		{
 			name:    "another user's card is not found",
@@ -423,12 +440,63 @@ func TestStore_ReplaceArtwork(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				s, _ := newTestStore(t)
+				time.Sleep(addTime.Sub(t0))
 
-				c, replaced, err := s.ReplaceArtwork(t.Context(), tt.userID, tt.cardID, []AssetInput{newAsset})
+				c, err := s.AddMedia(t.Context(), tt.userID, tt.cardID, in)
 
 				require.ErrorIs(t, err, tt.wantErr)
 				require.Empty(t, cmp.Diff(tt.expected, c, entOpts))
-				require.Equal(t, tt.expectedReplaced, replaced)
+			})
+		})
+	}
+}
+
+func TestStore_DeleteMedia(t *testing.T) {
+	tests := []struct {
+		name          string
+		userID        uuid.UUID
+		cardID        uuid.UUID
+		mediaID       uuid.UUID
+		expectedKeys  []string
+		expectedMedia int
+		wantErr       error
+	}{
+		{
+			name:          "deletes the media and returns its keys",
+			userID:        user1,
+			cardID:        card1,
+			mediaID:       media1,
+			expectedKeys:  []string{"cards/c1/display.jpg"},
+			expectedMedia: 0,
+		},
+		{
+			name:          "media on another card is not found",
+			userID:        user1,
+			cardID:        card2,
+			mediaID:       media1,
+			expectedMedia: 1,
+			wantErr:       ErrNotFound,
+		},
+		{
+			name:          "another user's media is not found",
+			userID:        user2,
+			cardID:        card1,
+			mediaID:       media1,
+			expectedMedia: 1,
+			wantErr:       ErrNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s, client := newTestStore(t)
+
+				keys, err := s.DeleteMedia(t.Context(), tt.userID, tt.cardID, tt.mediaID)
+
+				require.ErrorIs(t, err, tt.wantErr)
+				require.Equal(t, tt.expectedKeys, keys)
+				require.Equal(t, tt.expectedMedia, client.Media.Query().CountX(t.Context()))
+				require.Equal(t, tt.expectedMedia, client.Asset.Query().CountX(t.Context()))
 			})
 		})
 	}
@@ -445,6 +513,7 @@ func TestStore_Draw(t *testing.T) {
 		count              int
 		reshuffle          bool
 		expectedCards      []*ent.Card
+		expectedFaces      map[uuid.UUID]uuid.UUID
 		expectedDiscard    []*ent.Card
 		expectedRemaining  int
 		expectedShuffledAt time.Time
@@ -457,7 +526,24 @@ func TestStore_Draw(t *testing.T) {
 			deckID:             deck1,
 			count:              2,
 			expectedCards:      []*ent.Card{drawnAt(testCard(card1), drawTime), drawnAt(testCard(card2), drawTime)},
+			expectedFaces:      map[uuid.UUID]uuid.UUID{card1: media1},
 			expectedRemaining:  1,
+			expectedShuffledAt: t0,
+		},
+		{
+			name: "picks a face from a card's media",
+			setup: func(t *testing.T, client *ent.Client) {
+				client.Media.Create().SetID(media2).SetCardID(card1).SetKind(media.KindImage).SetCreatedAt(t0.Add(time.Minute)).ExecX(t.Context())
+			},
+			userID: user1,
+			deckID: deck1,
+			count:  1,
+			expectedCards: []*ent.Card{{ID: card1, Name: "Anna", LastDrawnAt: &drawTime, CreatedAt: t0, UpdatedAt: drawTime, Edges: ent.CardEdges{Media: []*ent.Media{
+				{ID: media2, Kind: media.KindImage, CreatedAt: t0.Add(time.Minute)},
+				testMedia(),
+			}}}},
+			expectedFaces:      map[uuid.UUID]uuid.UUID{card1: media1},
+			expectedRemaining:  2,
 			expectedShuffledAt: t0,
 		},
 		{
@@ -506,6 +592,7 @@ func TestStore_Draw(t *testing.T) {
 			count:              2,
 			reshuffle:          true,
 			expectedCards:      []*ent.Card{drawnAt(testCard(card1), drawTime), drawnAt(testCard(card2), drawTime)},
+			expectedFaces:      map[uuid.UUID]uuid.UUID{card1: media1},
 			expectedRemaining:  1,
 			expectedShuffledAt: drawTime,
 		},
@@ -516,6 +603,7 @@ func TestStore_Draw(t *testing.T) {
 			deckID:             deck1,
 			count:              5,
 			expectedCards:      []*ent.Card{drawnAt(testCard(card1), drawTime), drawnAt(testCard(card2), drawTime), drawnAt(testCard(card3), drawTime)},
+			expectedFaces:      map[uuid.UUID]uuid.UUID{card1: media1},
 			expectedRemaining:  0,
 			expectedShuffledAt: t0,
 		},
@@ -550,6 +638,7 @@ func TestStore_Draw(t *testing.T) {
 					return
 				}
 				require.Empty(t, cmp.Diff(tt.expectedCards, d.Cards, entOpts))
+				require.Empty(t, cmp.Diff(tt.expectedFaces, d.Faces, entOpts))
 				require.Empty(t, cmp.Diff(tt.expectedDiscard, d.Discard, entOpts))
 				require.Equal(t, tt.expectedRemaining, d.Remaining)
 				ids := make([]uuid.UUID, len(tt.expectedCards))

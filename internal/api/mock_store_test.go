@@ -43,6 +43,21 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
+// AddMedia mocks base method.
+func (m *MockStore) AddMedia(ctx context.Context, userID, cardID uuid.UUID, in store.MediaInput) (*ent.Card, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddMedia", ctx, userID, cardID, in)
+	ret0, _ := ret[0].(*ent.Card)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddMedia indicates an expected call of AddMedia.
+func (mr *MockStoreMockRecorder) AddMedia(ctx, userID, cardID, in any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMedia", reflect.TypeOf((*MockStore)(nil).AddMedia), ctx, userID, cardID, in)
+}
+
 // Card mocks base method.
 func (m *MockStore) Card(ctx context.Context, userID, cardID uuid.UUID) (*ent.Card, error) {
 	m.ctrl.T.Helper()
@@ -163,6 +178,21 @@ func (mr *MockStoreMockRecorder) DeleteDeck(ctx, userID, deckID any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteDeck", reflect.TypeOf((*MockStore)(nil).DeleteDeck), ctx, userID, deckID)
 }
 
+// DeleteMedia mocks base method.
+func (m *MockStore) DeleteMedia(ctx context.Context, userID, cardID, mediaID uuid.UUID) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteMedia", ctx, userID, cardID, mediaID)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteMedia indicates an expected call of DeleteMedia.
+func (mr *MockStoreMockRecorder) DeleteMedia(ctx, userID, cardID, mediaID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMedia", reflect.TypeOf((*MockStore)(nil).DeleteMedia), ctx, userID, cardID, mediaID)
+}
+
 // Draw mocks base method.
 func (m *MockStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int, reshuffle bool) (*store.Draw, error) {
 	m.ctrl.T.Helper()
@@ -191,22 +221,6 @@ func (m *MockStore) RenameDeck(ctx context.Context, userID, deckID uuid.UUID, na
 func (mr *MockStoreMockRecorder) RenameDeck(ctx, userID, deckID, name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenameDeck", reflect.TypeOf((*MockStore)(nil).RenameDeck), ctx, userID, deckID, name)
-}
-
-// ReplaceArtwork mocks base method.
-func (m *MockStore) ReplaceArtwork(ctx context.Context, userID, cardID uuid.UUID, assets []store.AssetInput) (*ent.Card, []string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReplaceArtwork", ctx, userID, cardID, assets)
-	ret0, _ := ret[0].(*ent.Card)
-	ret1, _ := ret[1].([]string)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// ReplaceArtwork indicates an expected call of ReplaceArtwork.
-func (mr *MockStoreMockRecorder) ReplaceArtwork(ctx, userID, cardID, assets any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReplaceArtwork", reflect.TypeOf((*MockStore)(nil).ReplaceArtwork), ctx, userID, cardID, assets)
 }
 
 // ResolveIdentity mocks base method.

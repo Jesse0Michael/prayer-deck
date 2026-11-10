@@ -61,6 +61,16 @@ func CreatedAt(v time.Time) predicate.Draw {
 	return predicate.Draw(sql.FieldEQ(FieldCreatedAt, v))
 }
 
+// FacesIsNil applies the IsNil predicate on the "faces" field.
+func FacesIsNil() predicate.Draw {
+	return predicate.Draw(sql.FieldIsNull(FieldFaces))
+}
+
+// FacesNotNil applies the NotNil predicate on the "faces" field.
+func FacesNotNil() predicate.Draw {
+	return predicate.Draw(sql.FieldNotNull(FieldFaces))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Draw {
 	return predicate.Draw(sql.FieldEQ(FieldCreatedAt, v))

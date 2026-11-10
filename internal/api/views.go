@@ -41,21 +41,26 @@ func toDeckView(d *store.Deck) deckView {
 	}
 }
 
-type artworkView struct {
-	DisplayURL   string `json:"display_url"`
-	ThumbnailURL string `json:"thumbnail_url"`
-	OriginalURL  string `json:"original_url"`
-	Width        int    `json:"width"`
-	Height       int    `json:"height"`
+// mediaView holds time-limited URLs to each rendition of a media item. Width
+// and height are the display rendition's.
+type mediaView struct {
+	ID           uuid.UUID `json:"id"`
+	Kind         string    `json:"kind"`
+	DisplayURL   string    `json:"display_url"`
+	ThumbnailURL string    `json:"thumbnail_url"`
+	OriginalURL  string    `json:"original_url"`
+	Width        int       `json:"width"`
+	Height       int       `json:"height"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type cardView struct {
-	ID        uuid.UUID    `json:"id"`
-	Name      string       `json:"name"`
-	Notes     string       `json:"notes"`
-	Artwork   *artworkView `json:"artwork"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
+	ID        uuid.UUID   `json:"id"`
+	Name      string      `json:"name"`
+	Notes     string      `json:"notes"`
+	Media     []mediaView `json:"media"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
 }
 
 func (s *Server) toCardView(ctx context.Context, c *ent.Card) (cardView, error) {
@@ -63,31 +68,38 @@ func (s *Server) toCardView(ctx context.Context, c *ent.Card) (cardView, error) 
 		ID:        c.ID,
 		Name:      c.Name,
 		Notes:     c.Notes,
+		Media:     make([]mediaView, len(c.Edges.Media)),
 		CreatedAt: c.CreatedAt,
 		UpdatedAt: c.UpdatedAt,
 	}
-	if len(c.Edges.Assets) == 0 {
-		return view, nil
-	}
-
-	artwork := &artworkView{}
-	for _, a := range c.Edges.Assets {
-		url, err := s.storage.URL(ctx, a.Key)
+	for i, m := range c.Edges.Media {
+		mv, err := s.toMediaView(ctx, m)
 		if err != nil {
 			return cardView{}, err
 		}
+		view.Media[i] = mv
+	}
+	return view, nil
+}
+
+func (s *Server) toMediaView(ctx context.Context, m *ent.Media) (mediaView, error) {
+	view := mediaView{ID: m.ID, Kind: m.Kind.String(), CreatedAt: m.CreatedAt}
+	for _, a := range m.Edges.Assets {
+		url, err := s.storage.URL(ctx, a.Key)
+		if err != nil {
+			return mediaView{}, err
+		}
 		switch a.Rendition {
 		case asset.RenditionDisplay:
-			artwork.DisplayURL = url
-			artwork.Width = a.Width
-			artwork.Height = a.Height
+			view.DisplayURL = url
+			view.Width = a.Width
+			view.Height = a.Height
 		case asset.RenditionThumbnail:
-			artwork.ThumbnailURL = url
+			view.ThumbnailURL = url
 		case asset.RenditionOriginal:
-			artwork.OriginalURL = url
+			view.OriginalURL = url
 		}
 	}
-	view.Artwork = artwork
 	return view, nil
 }
 
@@ -103,18 +115,39 @@ func (s *Server) toCardViews(ctx context.Context, cards []*ent.Card) ([]cardView
 	return views, nil
 }
 
+// drawnCardView is a dealt card with the media chosen as its face. Face is nil
+// when the card has no media or the chosen media has since been deleted.
+type drawnCardView struct {
+	cardView
+	Face *mediaView `json:"face"`
+}
+
 type drawView struct {
-	ID        uuid.UUID  `json:"id"`
-	Cards     []cardView `json:"cards"`
-	Discard   []cardView `json:"discard"`
-	Remaining int        `json:"remaining"`
-	CreatedAt time.Time  `json:"created_at"`
+	ID        uuid.UUID       `json:"id"`
+	Cards     []drawnCardView `json:"cards"`
+	Discard   []cardView      `json:"discard"`
+	Remaining int             `json:"remaining"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 func (s *Server) toDrawView(ctx context.Context, d *store.Draw) (drawView, error) {
-	cards, err := s.toCardViews(ctx, d.Cards)
-	if err != nil {
-		return drawView{}, err
+	cards := make([]drawnCardView, len(d.Cards))
+	for i, c := range d.Cards {
+		view, err := s.toCardView(ctx, c)
+		if err != nil {
+			return drawView{}, err
+		}
+		cards[i] = drawnCardView{cardView: view}
+		faceID, ok := d.Faces[c.ID]
+		if !ok {
+			continue
+		}
+		for _, m := range view.Media {
+			if m.ID == faceID {
+				cards[i].Face = &m
+				break
+			}
+		}
 	}
 	discard, err := s.toCardViews(ctx, d.Discard)
 	if err != nil {

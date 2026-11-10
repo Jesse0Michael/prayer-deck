@@ -20,18 +20,20 @@ import (
 	"github.com/jesse0michael/pkg/test"
 	"github.com/jesse0michael/prayer-deck/internal/ent"
 	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
+	entmedia "github.com/jesse0michael/prayer-deck/internal/ent/media"
 	"github.com/jesse0michael/prayer-deck/internal/store"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
 var (
-	testUserID = uuid.MustParse("00000000-0000-0000-0000-0000000000a1")
-	testDeckID = uuid.MustParse("00000000-0000-0000-0000-0000000000d1")
-	testCardID = uuid.MustParse("00000000-0000-0000-0000-0000000000c1")
-	testDrawID = uuid.MustParse("00000000-0000-0000-0000-0000000000f1")
-	testTime   = time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
-	errTest    = errors.New("test-error")
+	testUserID  = uuid.MustParse("00000000-0000-0000-0000-0000000000a1")
+	testDeckID  = uuid.MustParse("00000000-0000-0000-0000-0000000000d1")
+	testCardID  = uuid.MustParse("00000000-0000-0000-0000-0000000000c1")
+	testMediaID = uuid.MustParse("00000000-0000-0000-0000-0000000000b1")
+	testDrawID  = uuid.MustParse("00000000-0000-0000-0000-0000000000f1")
+	testTime    = time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
+	errTest     = errors.New("test-error")
 )
 
 func testDeck() *store.Deck {
@@ -48,19 +50,21 @@ func testCard() *ent.Card {
 	return &ent.Card{ID: testCardID, Name: "test-card", Notes: "test-notes", CreatedAt: testTime, UpdatedAt: testTime}
 }
 
-const testCardJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","notes":"test-notes","artwork":null,"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
+const testCardJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","notes":"test-notes","media":[],"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
 
-func testCardWithArtwork() *ent.Card {
+func testCardWithMedia() *ent.Card {
 	c := testCard()
-	c.Edges.Assets = []*ent.Asset{
+	c.Edges.Media = []*ent.Media{{ID: testMediaID, Kind: entmedia.KindImage, CreatedAt: testTime, Edges: ent.MediaEdges{Assets: []*ent.Asset{
 		{Rendition: asset.RenditionOriginal, Key: "test-original", Width: 1024, Height: 1536},
 		{Rendition: asset.RenditionDisplay, Key: "test-display", Width: 1024, Height: 1536},
 		{Rendition: asset.RenditionThumbnail, Key: "test-thumbnail", Width: 320, Height: 480},
-	}
+	}}}}
 	return c
 }
 
-const testCardWithArtworkJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","notes":"test-notes","artwork":{"display_url":"https://storage.test/test-display","thumbnail_url":"https://storage.test/test-thumbnail","original_url":"https://storage.test/test-original","width":1024,"height":1536},"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
+const testMediaJSON = `{"id":"00000000-0000-0000-0000-0000000000b1","kind":"image","display_url":"https://storage.test/test-display","thumbnail_url":"https://storage.test/test-thumbnail","original_url":"https://storage.test/test-original","width":1024,"height":1536,"created_at":"2026-11-09T12:00:00Z"}`
+
+const testCardWithMediaJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","notes":"test-notes","media":[` + testMediaJSON + `],"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
 
 func expectURLs(storage *MockStorage) {
 	storage.EXPECT().URL(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, key string) (string, error) {
@@ -483,11 +487,11 @@ func TestServer_cards(t *testing.T) {
 			method: http.MethodGet,
 			path:   "/v1/decks/" + testDeckID.String() + "/cards",
 			mockSetup: func(st *MockStore, storage *MockStorage) {
-				st.EXPECT().Cards(gomock.Any(), testUserID, testDeckID).Return([]*ent.Card{testCardWithArtwork(), testCard()}, nil)
+				st.EXPECT().Cards(gomock.Any(), testUserID, testDeckID).Return([]*ent.Card{testCardWithMedia(), testCard()}, nil)
 				expectURLs(storage)
 			},
 			expectedCode: http.StatusOK,
-			expectedBody: `{"cards":[` + testCardWithArtworkJSON + `,` + testCardJSON + `]}`,
+			expectedBody: `{"cards":[` + testCardWithMediaJSON + `,` + testCardJSON + `]}`,
 		},
 		{
 			name:   "list cards of a missing deck",
@@ -500,11 +504,11 @@ func TestServer_cards(t *testing.T) {
 			expectedBody: `{"errors":[{"message":"not found"}]}`,
 		},
 		{
-			name:   "list cards fails to sign artwork",
+			name:   "list cards fails to sign media",
 			method: http.MethodGet,
 			path:   "/v1/decks/" + testDeckID.String() + "/cards",
 			mockSetup: func(st *MockStore, storage *MockStorage) {
-				st.EXPECT().Cards(gomock.Any(), testUserID, testDeckID).Return([]*ent.Card{testCardWithArtwork()}, nil)
+				st.EXPECT().Cards(gomock.Any(), testUserID, testDeckID).Return([]*ent.Card{testCardWithMedia()}, nil)
 				storage.EXPECT().URL(gomock.Any(), "test-original").Return("", errTest)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -535,11 +539,11 @@ func TestServer_cards(t *testing.T) {
 			method: http.MethodGet,
 			path:   "/v1/cards/" + testCardID.String(),
 			mockSetup: func(st *MockStore, storage *MockStorage) {
-				st.EXPECT().Card(gomock.Any(), testUserID, testCardID).Return(testCardWithArtwork(), nil)
+				st.EXPECT().Card(gomock.Any(), testUserID, testCardID).Return(testCardWithMedia(), nil)
 				expectURLs(storage)
 			},
 			expectedCode: http.StatusOK,
-			expectedBody: testCardWithArtworkJSON,
+			expectedBody: testCardWithMediaJSON,
 		},
 		{
 			name:   "update card notes",
@@ -562,7 +566,7 @@ func TestServer_cards(t *testing.T) {
 			expectedBody: `{"errors":[{"message":"name must not be empty"}]}`,
 		},
 		{
-			name:   "delete card and its artwork",
+			name:   "delete card and its media",
 			method: http.MethodDelete,
 			path:   "/v1/cards/" + testCardID.String(),
 			mockSetup: func(st *MockStore, storage *MockStorage) {
@@ -595,11 +599,12 @@ func TestServer_cards(t *testing.T) {
 	}
 }
 
-func TestServer_uploadArtwork(t *testing.T) {
+func TestServer_addMedia(t *testing.T) {
 	keyPrefix := "cards/" + testCardID.String() + "/"
-	originalKey := keyPrefix + "52fdfc07-2182-454f-963f-5f0f9a621d72-original.png"
-	displayKey := keyPrefix + "9566c74d-1003-4c4d-bbbb-0407d1e2c649-display.jpg"
-	thumbnailKey := keyPrefix + "81855ad8-681d-4d86-91e9-1e00167939cb-thumbnail.jpg"
+	mediaPrefix := keyPrefix + "52fdfc07-2182-454f-963f-5f0f9a621d72/"
+	originalKey := mediaPrefix + "original.png"
+	displayKey := mediaPrefix + "display.jpg"
+	thumbnailKey := mediaPrefix + "thumbnail.jpg"
 	tests := []struct {
 		name         string
 		file         string
@@ -608,19 +613,28 @@ func TestServer_uploadArtwork(t *testing.T) {
 		expectedBody string
 	}{
 		{
-			name: "stores every rendition and replaces the artwork",
+			name: "stores every rendition as new media",
 			file: "testdata/artwork.png",
 			mockSetup: func(st *MockStore, storage *MockStorage) {
 				st.EXPECT().Card(gomock.Any(), testUserID, testCardID).Return(testCard(), nil)
 				storage.EXPECT().Put(gomock.Any(), originalKey, gomock.Any(), int64(148), "image/png").Return(nil)
 				storage.EXPECT().Put(gomock.Any(), displayKey, gomock.Any(), gomock.Any(), "image/jpeg").Return(nil)
 				storage.EXPECT().Put(gomock.Any(), thumbnailKey, gomock.Any(), gomock.Any(), "image/jpeg").Return(nil)
-				st.EXPECT().ReplaceArtwork(gomock.Any(), testUserID, testCardID, gomock.Len(3)).Return(testCardWithArtwork(), []string{"test-old-key"}, nil)
-				storage.EXPECT().Delete(gomock.Any(), "test-old-key").Return(nil)
+				st.EXPECT().AddMedia(gomock.Any(), testUserID, testCardID, gomock.Any()).
+					DoAndReturn(func(_ context.Context, _, _ uuid.UUID, in store.MediaInput) (*ent.Card, error) {
+						require.Equal(t, uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72"), in.ID)
+						require.Equal(t, entmedia.KindImage, in.Kind)
+						keys := make([]string, len(in.Assets))
+						for i, a := range in.Assets {
+							keys[i] = a.Key
+						}
+						require.Equal(t, []string{originalKey, displayKey, thumbnailKey}, keys)
+						return testCardWithMedia(), nil
+					})
 				expectURLs(storage)
 			},
-			expectedCode: http.StatusOK,
-			expectedBody: testCardWithArtworkJSON,
+			expectedCode: http.StatusCreated,
+			expectedBody: testCardWithMediaJSON,
 		},
 		{
 			name: "removes uploaded renditions when saving fails",
@@ -628,7 +642,7 @@ func TestServer_uploadArtwork(t *testing.T) {
 			mockSetup: func(st *MockStore, storage *MockStorage) {
 				st.EXPECT().Card(gomock.Any(), testUserID, testCardID).Return(testCard(), nil)
 				storage.EXPECT().Put(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(3)
-				st.EXPECT().ReplaceArtwork(gomock.Any(), testUserID, testCardID, gomock.Len(3)).Return(nil, nil, errTest)
+				st.EXPECT().AddMedia(gomock.Any(), testUserID, testCardID, gomock.Any()).Return(nil, errTest)
 				storage.EXPECT().Delete(gomock.Any(), originalKey, displayKey, thumbnailKey).Return(nil)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -673,13 +687,58 @@ func TestServer_uploadArtwork(t *testing.T) {
 			defer uuid.SetRand(nil)
 			var body bytes.Buffer
 			mw := multipart.NewWriter(&body)
-			part, err := mw.CreateFormFile("image", "artwork")
+			part, err := mw.CreateFormFile("image", "test-image")
 			require.NoError(t, err)
 			_, err = part.Write(test.LoadFile(t, tt.file))
 			require.NoError(t, err)
 			require.NoError(t, mw.Close())
 
-			w := ts.serve(http.MethodPut, "/v1/cards/"+testCardID.String()+"/artwork", ts.token, mw.FormDataContentType(), &body)
+			w := ts.serve(http.MethodPost, "/v1/cards/"+testCardID.String()+"/media", ts.token, mw.FormDataContentType(), &body)
+
+			require.Equal(t, tt.expectedCode, w.Code)
+			require.Equal(t, tt.expectedBody, strings.TrimSpace(w.Body.String()))
+		})
+	}
+}
+
+func TestServer_deleteMedia(t *testing.T) {
+	tests := []struct {
+		name         string
+		mockSetup    func(st *MockStore, storage *MockStorage)
+		expectedCode int
+		expectedBody string
+	}{
+		{
+			name: "deletes the media and its objects",
+			mockSetup: func(st *MockStore, storage *MockStorage) {
+				st.EXPECT().DeleteMedia(gomock.Any(), testUserID, testCardID, testMediaID).Return([]string{"test-display", "test-thumbnail"}, nil)
+				storage.EXPECT().Delete(gomock.Any(), "test-display", "test-thumbnail").Return(nil)
+			},
+			expectedCode: http.StatusNoContent,
+		},
+		{
+			name: "succeeds when object cleanup fails",
+			mockSetup: func(st *MockStore, storage *MockStorage) {
+				st.EXPECT().DeleteMedia(gomock.Any(), testUserID, testCardID, testMediaID).Return([]string{"test-display"}, nil)
+				storage.EXPECT().Delete(gomock.Any(), "test-display").Return(errTest)
+			},
+			expectedCode: http.StatusNoContent,
+		},
+		{
+			name: "another user's media",
+			mockSetup: func(st *MockStore, _ *MockStorage) {
+				st.EXPECT().DeleteMedia(gomock.Any(), testUserID, testCardID, testMediaID).Return(nil, store.ErrNotFound)
+			},
+			expectedCode: http.StatusNotFound,
+			expectedBody: `{"errors":[{"message":"not found"}]}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := newTestServer(t)
+			tt.mockSetup(ts.store, ts.storage)
+
+			w := ts.serve(http.MethodDelete, "/v1/cards/"+testCardID.String()+"/media/"+testMediaID.String(), ts.token, "", nil)
 
 			require.Equal(t, tt.expectedCode, w.Code)
 			require.Equal(t, tt.expectedBody, strings.TrimSpace(w.Body.String()))
@@ -693,13 +752,26 @@ func TestServer_draws(t *testing.T) {
 		Cards:     []*ent.Card{testCard()},
 		Remaining: 4,
 	}
-	testDrawJSON := `{"id":"00000000-0000-0000-0000-0000000000f1","cards":[` + testCardJSON + `],"discard":[],"remaining":4,"created_at":"2026-11-09T12:00:00Z"}`
+	testDrawJSON := `{"id":"00000000-0000-0000-0000-0000000000f1","cards":[` + strings.TrimSuffix(testCardJSON, "}") + `,"face":null}],"discard":[],"remaining":4,"created_at":"2026-11-09T12:00:00Z"}`
+	testDrawWithFace := &store.Draw{
+		Draw:      &ent.Draw{ID: testDrawID, CardIds: []uuid.UUID{testCardID}, Faces: map[uuid.UUID]uuid.UUID{testCardID: testMediaID}, CreatedAt: testTime},
+		Cards:     []*ent.Card{testCardWithMedia()},
+		Discard:   []*ent.Card{testCardWithMedia()},
+		Remaining: 4,
+	}
+	testDrawWithFaceJSON := `{"id":"00000000-0000-0000-0000-0000000000f1","cards":[` + strings.TrimSuffix(testCardWithMediaJSON, "}") + `,"face":` + testMediaJSON + `}],"discard":[` + testCardWithMediaJSON + `],"remaining":4,"created_at":"2026-11-09T12:00:00Z"}`
+	testDrawWithDeletedFace := &store.Draw{
+		Draw:      &ent.Draw{ID: testDrawID, CardIds: []uuid.UUID{testCardID}, Faces: map[uuid.UUID]uuid.UUID{testCardID: uuid.MustParse("00000000-0000-0000-0000-0000000000b2")}, CreatedAt: testTime},
+		Cards:     []*ent.Card{testCardWithMedia()},
+		Remaining: 4,
+	}
+	testDrawWithDeletedFaceJSON := `{"id":"00000000-0000-0000-0000-0000000000f1","cards":[` + strings.TrimSuffix(testCardWithMediaJSON, "}") + `,"face":null}],"discard":[],"remaining":4,"created_at":"2026-11-09T12:00:00Z"}`
 	tests := []struct {
 		name         string
 		method       string
 		path         string
 		body         string
-		mockSetup    func(st *MockStore)
+		mockSetup    func(st *MockStore, storage *MockStorage)
 		expectedCode int
 		expectedBody string
 	}{
@@ -707,7 +779,7 @@ func TestServer_draws(t *testing.T) {
 			name:   "draw the default three",
 			method: http.MethodPost,
 			path:   "/v1/decks/" + testDeckID.String() + "/draws",
-			mockSetup: func(st *MockStore) {
+			mockSetup: func(st *MockStore, _ *MockStorage) {
 				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3, false).Return(testDraw, nil)
 			},
 			expectedCode: http.StatusCreated,
@@ -718,7 +790,7 @@ func TestServer_draws(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/v1/decks/" + testDeckID.String() + "/draws",
 			body:   `{"count":1}`,
-			mockSetup: func(st *MockStore) {
+			mockSetup: func(st *MockStore, _ *MockStorage) {
 				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 1, false).Return(testDraw, nil)
 			},
 			expectedCode: http.StatusCreated,
@@ -729,18 +801,40 @@ func TestServer_draws(t *testing.T) {
 			method: http.MethodPost,
 			path:   "/v1/decks/" + testDeckID.String() + "/draws",
 			body:   `{"count":3,"shuffle":true}`,
-			mockSetup: func(st *MockStore) {
+			mockSetup: func(st *MockStore, _ *MockStorage) {
 				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3, true).Return(testDraw, nil)
 			},
 			expectedCode: http.StatusCreated,
 			expectedBody: testDrawJSON,
 		},
 		{
+			name:   "draw shows each card's chosen face",
+			method: http.MethodPost,
+			path:   "/v1/decks/" + testDeckID.String() + "/draws",
+			mockSetup: func(st *MockStore, storage *MockStorage) {
+				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3, false).Return(testDrawWithFace, nil)
+				expectURLs(storage)
+			},
+			expectedCode: http.StatusCreated,
+			expectedBody: testDrawWithFaceJSON,
+		},
+		{
+			name:   "current draw whose face was deleted",
+			method: http.MethodGet,
+			path:   "/v1/decks/" + testDeckID.String() + "/draws/current",
+			mockSetup: func(st *MockStore, storage *MockStorage) {
+				st.EXPECT().CurrentDraw(gomock.Any(), testUserID, testDeckID).Return(testDrawWithDeletedFace, nil)
+				expectURLs(storage)
+			},
+			expectedCode: http.StatusOK,
+			expectedBody: testDrawWithDeletedFaceJSON,
+		},
+		{
 			name:         "draw too many",
 			method:       http.MethodPost,
 			path:         "/v1/decks/" + testDeckID.String() + "/draws",
 			body:         `{"count":11}`,
-			mockSetup:    func(*MockStore) {},
+			mockSetup:    func(*MockStore, *MockStorage) {},
 			expectedCode: http.StatusBadRequest,
 			expectedBody: `{"errors":[{"message":"count must be between 1 and 10"}]}`,
 		},
@@ -748,7 +842,7 @@ func TestServer_draws(t *testing.T) {
 			name:   "draw from an empty deck",
 			method: http.MethodPost,
 			path:   "/v1/decks/" + testDeckID.String() + "/draws",
-			mockSetup: func(st *MockStore) {
+			mockSetup: func(st *MockStore, _ *MockStorage) {
 				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3, false).Return(nil, store.ErrEmptyDeck)
 			},
 			expectedCode: http.StatusUnprocessableEntity,
@@ -758,7 +852,7 @@ func TestServer_draws(t *testing.T) {
 			name:   "draw after the pass is finished",
 			method: http.MethodPost,
 			path:   "/v1/decks/" + testDeckID.String() + "/draws",
-			mockSetup: func(st *MockStore) {
+			mockSetup: func(st *MockStore, _ *MockStorage) {
 				st.EXPECT().Draw(gomock.Any(), testUserID, testDeckID, 3, false).Return(nil, store.ErrPassFinished)
 			},
 			expectedCode: http.StatusConflict,
@@ -768,7 +862,7 @@ func TestServer_draws(t *testing.T) {
 			name:   "current draw",
 			method: http.MethodGet,
 			path:   "/v1/decks/" + testDeckID.String() + "/draws/current",
-			mockSetup: func(st *MockStore) {
+			mockSetup: func(st *MockStore, _ *MockStorage) {
 				st.EXPECT().CurrentDraw(gomock.Any(), testUserID, testDeckID).Return(testDraw, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -778,7 +872,7 @@ func TestServer_draws(t *testing.T) {
 			name:   "no current draw",
 			method: http.MethodGet,
 			path:   "/v1/decks/" + testDeckID.String() + "/draws/current",
-			mockSetup: func(st *MockStore) {
+			mockSetup: func(st *MockStore, _ *MockStorage) {
 				st.EXPECT().CurrentDraw(gomock.Any(), testUserID, testDeckID).Return(nil, store.ErrNotFound)
 			},
 			expectedCode: http.StatusNotFound,
@@ -788,7 +882,7 @@ func TestServer_draws(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts := newTestServer(t)
-			tt.mockSetup(ts.store)
+			tt.mockSetup(ts.store, ts.storage)
 
 			w := ts.serve(tt.method, tt.path, ts.token, "application/json", strings.NewReader(tt.body))
 

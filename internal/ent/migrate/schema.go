@@ -18,7 +18,7 @@ var (
 		{Name: "width", Type: field.TypeInt},
 		{Name: "height", Type: field.TypeInt},
 		{Name: "created_at", Type: field.TypeTime},
-		{Name: "card_assets", Type: field.TypeUUID},
+		{Name: "media_assets", Type: field.TypeUUID},
 	}
 	// AssetsTable holds the schema information for the "assets" table.
 	AssetsTable = &schema.Table{
@@ -27,9 +27,9 @@ var (
 		PrimaryKey: []*schema.Column{AssetsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "assets_cards_assets",
+				Symbol:     "assets_media_assets",
 				Columns:    []*schema.Column{AssetsColumns[8]},
-				RefColumns: []*schema.Column{CardsColumns[0]},
+				RefColumns: []*schema.Column{MediaColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
@@ -85,6 +85,7 @@ var (
 	DrawsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "card_ids", Type: field.TypeJSON},
+		{Name: "faces", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "deck_draws", Type: field.TypeUUID},
 	}
@@ -96,7 +97,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "draws_decks_draws",
-				Columns:    []*schema.Column{DrawsColumns[3]},
+				Columns:    []*schema.Column{DrawsColumns[4]},
 				RefColumns: []*schema.Column{DecksColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -132,6 +133,34 @@ var (
 			},
 		},
 	}
+	// MediaColumns holds the columns for the "media" table.
+	MediaColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"image"}},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "card_media", Type: field.TypeUUID},
+	}
+	// MediaTable holds the schema information for the "media" table.
+	MediaTable = &schema.Table{
+		Name:       "media",
+		Columns:    MediaColumns,
+		PrimaryKey: []*schema.Column{MediaColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "media_cards_media",
+				Columns:    []*schema.Column{MediaColumns[3]},
+				RefColumns: []*schema.Column{CardsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "media_created_at_card_media",
+				Unique:  false,
+				Columns: []*schema.Column{MediaColumns[2], MediaColumns[3]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -154,14 +183,16 @@ var (
 		DecksTable,
 		DrawsTable,
 		IdentitiesTable,
+		MediaTable,
 		UsersTable,
 	}
 )
 
 func init() {
-	AssetsTable.ForeignKeys[0].RefTable = CardsTable
+	AssetsTable.ForeignKeys[0].RefTable = MediaTable
 	CardsTable.ForeignKeys[0].RefTable = DecksTable
 	DecksTable.ForeignKeys[0].RefTable = UsersTable
 	DrawsTable.ForeignKeys[0].RefTable = DecksTable
 	IdentitiesTable.ForeignKeys[0].RefTable = UsersTable
+	MediaTable.ForeignKeys[0].RefTable = CardsTable
 }

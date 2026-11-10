@@ -115,7 +115,7 @@ func (s *Server) deleteDeck(w http.ResponseWriter, r *http.Request) {
 	// The deck is already gone; leftover objects are unreachable, so a
 	// storage failure is logged rather than failing the request.
 	if err := s.storage.Delete(ctx, keys...); err != nil {
-		slog.ErrorContext(ctx, "failed to delete deck artwork", "err", err, "deck_id", deckID)
+		slog.ErrorContext(ctx, "failed to delete deck media", "err", err, "deck_id", deckID)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

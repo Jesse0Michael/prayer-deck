@@ -17,6 +17,8 @@ const (
 	FieldID = "id"
 	// FieldCardIds holds the string denoting the card_ids field in the database.
 	FieldCardIds = "card_ids"
+	// FieldFaces holds the string denoting the faces field in the database.
+	FieldFaces = "faces"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeDeck holds the string denoting the deck edge name in mutations.
@@ -36,6 +38,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldCardIds,
+	FieldFaces,
 	FieldCreatedAt,
 }
 

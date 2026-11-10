@@ -92,10 +92,15 @@ export class ApiClient {
     return this.request("DELETE", `/v1/cards/${cardID}`);
   }
 
-  uploadArtwork(cardID: string, file: Blob): Promise<Card> {
+  /** Uploads an image as the card's newest media, which becomes its primary face. */
+  addMedia(cardID: string, file: Blob): Promise<Card> {
     const form = new FormData();
     form.append("image", file);
-    return this.request("PUT", `/v1/cards/${cardID}/artwork`, { form });
+    return this.request("POST", `/v1/cards/${cardID}/media`, { form });
+  }
+
+  deleteMedia(cardID: string, mediaID: string): Promise<void> {
+    return this.request("DELETE", `/v1/cards/${cardID}/media/${mediaID}`);
   }
 
   /** Deals the next cards in the pass; with shuffle, every card returns to the pass first. */

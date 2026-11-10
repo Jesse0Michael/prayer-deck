@@ -73,7 +73,7 @@ api/openapi.yaml        REST contract, the source of truth for the TS client typ
 cmd/app                 API entrypoint (boot.App runner); builds to bin/prayer-deck-api
 internal/api            HTTP handlers, routing, CORS, request logging
 internal/store          Store interface + ent implementation (all queries scoped to the user)
-internal/media          S3/MinIO storage + artwork renditions (original, display, thumbnail)
+internal/media          S3/MinIO storage + image renditions (original, display, thumbnail)
 internal/ent/schema     ent schemas; generated code in internal/ent is committed
 app/                    Wails v3 client (separate Go module)
   main.go               Wails app + ConfigService (runtime API URL)
@@ -85,9 +85,13 @@ docs/                   product brief, decisions, art direction, pkg follow-ups
 
 ### Domain model
 
-`User` ← `Identity` (provider + subject, unique) · `User` → `Deck` → `Card` → `Asset`
-(one row per rendition) · `Deck` → `Draw` (only the latest is kept, with
-`card_ids` in dealt order).
+`User` ← `Identity` (provider + subject, unique) · `User` → `Deck` → `Card` → `Media`
+(one picture; `kind` is `image` for now) → `Asset` (one row per rendition) ·
+`Deck` → `Draw` (only the latest is kept, with `card_ids` in dealt order and
+`faces` naming the media dealt for each card).
+
+A card's media is listed newest first, and the first item is its primary face.
+Drawing picks one of a card's media at random as its face for that draw.
 
 A deck's **pass** is defined by `Deck.shuffled_at`: a card is still in the pass
 when `Card.last_drawn_at` is null or earlier. Drawing deals up to the requested

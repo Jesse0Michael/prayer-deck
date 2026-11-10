@@ -21,5 +21,8 @@ type Draw func(*sql.Selector)
 // Identity is the predicate function for identity builders.
 type Identity func(*sql.Selector)
 
+// Media is the predicate function for media builders.
+type Media func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

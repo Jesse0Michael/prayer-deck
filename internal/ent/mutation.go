@@ -17,6 +17,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
 	"github.com/jesse0michael/prayer-deck/internal/ent/draw"
 	"github.com/jesse0michael/prayer-deck/internal/ent/identity"
+	"github.com/jesse0michael/prayer-deck/internal/ent/media"
 	"github.com/jesse0michael/prayer-deck/internal/ent/predicate"
 	"github.com/jesse0michael/prayer-deck/internal/ent/user"
 )
@@ -35,6 +36,7 @@ const (
 	TypeDeck     = "Deck"
 	TypeDraw     = "Draw"
 	TypeIdentity = "Identity"
+	TypeMedia    = "Media"
 	TypeUser     = "User"
 )
 
@@ -55,8 +57,8 @@ type AssetMutation struct {
 	addheight     *int
 	created_at    *time.Time
 	clearedFields map[string]struct{}
-	card          *uuid.UUID
-	clearedcard   bool
+	media         *uuid.UUID
+	clearedmedia  bool
 	done          bool
 	oldValue      func(context.Context) (*Asset, error)
 	predicates    []predicate.Asset
@@ -478,43 +480,43 @@ func (m *AssetMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
-// SetCardID sets the "card" edge to the Card entity by id.
-func (m *AssetMutation) SetCardID(id uuid.UUID) {
-	m.card = &id
+// SetMediaID sets the "media" edge to the Media entity by id.
+func (m *AssetMutation) SetMediaID(id uuid.UUID) {
+	m.media = &id
 }
 
-// ClearCard clears the "card" edge to the Card entity.
-func (m *AssetMutation) ClearCard() {
-	m.clearedcard = true
+// ClearMedia clears the "media" edge to the Media entity.
+func (m *AssetMutation) ClearMedia() {
+	m.clearedmedia = true
 }
 
-// CardCleared reports if the "card" edge to the Card entity was cleared.
-func (m *AssetMutation) CardCleared() bool {
-	return m.clearedcard
+// MediaCleared reports if the "media" edge to the Media entity was cleared.
+func (m *AssetMutation) MediaCleared() bool {
+	return m.clearedmedia
 }
 
-// CardID returns the "card" edge ID in the mutation.
-func (m *AssetMutation) CardID() (id uuid.UUID, exists bool) {
-	if m.card != nil {
-		return *m.card, true
+// MediaID returns the "media" edge ID in the mutation.
+func (m *AssetMutation) MediaID() (id uuid.UUID, exists bool) {
+	if m.media != nil {
+		return *m.media, true
 	}
 	return
 }
 
-// CardIDs returns the "card" edge IDs in the mutation.
+// MediaIDs returns the "media" edge IDs in the mutation.
 // Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
-// CardID instead. It exists only for internal usage by the builders.
-func (m *AssetMutation) CardIDs() (ids []uuid.UUID) {
-	if id := m.card; id != nil {
+// MediaID instead. It exists only for internal usage by the builders.
+func (m *AssetMutation) MediaIDs() (ids []uuid.UUID) {
+	if id := m.media; id != nil {
 		ids = append(ids, *id)
 	}
 	return
 }
 
-// ResetCard resets all changes to the "card" edge.
-func (m *AssetMutation) ResetCard() {
-	m.card = nil
-	m.clearedcard = false
+// ResetMedia resets all changes to the "media" edge.
+func (m *AssetMutation) ResetMedia() {
+	m.media = nil
+	m.clearedmedia = false
 }
 
 // Where appends a list predicates to the AssetMutation builder.
@@ -792,8 +794,8 @@ func (m *AssetMutation) ResetField(name string) error {
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AssetMutation) AddedEdges() []string {
 	edges := make([]string, 0, 1)
-	if m.card != nil {
-		edges = append(edges, asset.EdgeCard)
+	if m.media != nil {
+		edges = append(edges, asset.EdgeMedia)
 	}
 	return edges
 }
@@ -802,8 +804,8 @@ func (m *AssetMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *AssetMutation) AddedIDs(name string) []ent.Value {
 	switch name {
-	case asset.EdgeCard:
-		if id := m.card; id != nil {
+	case asset.EdgeMedia:
+		if id := m.media; id != nil {
 			return []ent.Value{*id}
 		}
 	}
@@ -825,8 +827,8 @@ func (m *AssetMutation) RemovedIDs(name string) []ent.Value {
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AssetMutation) ClearedEdges() []string {
 	edges := make([]string, 0, 1)
-	if m.clearedcard {
-		edges = append(edges, asset.EdgeCard)
+	if m.clearedmedia {
+		edges = append(edges, asset.EdgeMedia)
 	}
 	return edges
 }
@@ -835,8 +837,8 @@ func (m *AssetMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *AssetMutation) EdgeCleared(name string) bool {
 	switch name {
-	case asset.EdgeCard:
-		return m.clearedcard
+	case asset.EdgeMedia:
+		return m.clearedmedia
 	}
 	return false
 }
@@ -845,8 +847,8 @@ func (m *AssetMutation) EdgeCleared(name string) bool {
 // if that edge is not defined in the schema.
 func (m *AssetMutation) ClearEdge(name string) error {
 	switch name {
-	case asset.EdgeCard:
-		m.ClearCard()
+	case asset.EdgeMedia:
+		m.ClearMedia()
 		return nil
 	}
 	return fmt.Errorf("unknown Asset unique edge %s", name)
@@ -856,8 +858,8 @@ func (m *AssetMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *AssetMutation) ResetEdge(name string) error {
 	switch name {
-	case asset.EdgeCard:
-		m.ResetCard()
+	case asset.EdgeMedia:
+		m.ResetMedia()
 		return nil
 	}
 	return fmt.Errorf("unknown Asset edge %s", name)
@@ -877,9 +879,9 @@ type CardMutation struct {
 	clearedFields map[string]struct{}
 	deck          *uuid.UUID
 	cleareddeck   bool
-	assets        map[uuid.UUID]struct{}
-	removedassets map[uuid.UUID]struct{}
-	clearedassets bool
+	media         map[uuid.UUID]struct{}
+	removedmedia  map[uuid.UUID]struct{}
+	clearedmedia  bool
 	done          bool
 	oldValue      func(context.Context) (*Card, error)
 	predicates    []predicate.Card
@@ -1234,58 +1236,58 @@ func (m *CardMutation) ResetDeck() {
 	m.cleareddeck = false
 }
 
-// AddAssetIDs adds the "assets" edge to the Asset entity by ids.
-func (m *CardMutation) AddAssetIDs(ids ...uuid.UUID) {
-	if m.assets == nil {
-		m.assets = make(map[uuid.UUID]struct{})
+// AddMediumIDs adds the "media" edge to the Media entity by ids.
+func (m *CardMutation) AddMediumIDs(ids ...uuid.UUID) {
+	if m.media == nil {
+		m.media = make(map[uuid.UUID]struct{})
 	}
 	for i := range ids {
-		m.assets[ids[i]] = struct{}{}
+		m.media[ids[i]] = struct{}{}
 	}
 }
 
-// ClearAssets clears the "assets" edge to the Asset entity.
-func (m *CardMutation) ClearAssets() {
-	m.clearedassets = true
+// ClearMedia clears the "media" edge to the Media entity.
+func (m *CardMutation) ClearMedia() {
+	m.clearedmedia = true
 }
 
-// AssetsCleared reports if the "assets" edge to the Asset entity was cleared.
-func (m *CardMutation) AssetsCleared() bool {
-	return m.clearedassets
+// MediaCleared reports if the "media" edge to the Media entity was cleared.
+func (m *CardMutation) MediaCleared() bool {
+	return m.clearedmedia
 }
 
-// RemoveAssetIDs removes the "assets" edge to the Asset entity by IDs.
-func (m *CardMutation) RemoveAssetIDs(ids ...uuid.UUID) {
-	if m.removedassets == nil {
-		m.removedassets = make(map[uuid.UUID]struct{})
+// RemoveMediumIDs removes the "media" edge to the Media entity by IDs.
+func (m *CardMutation) RemoveMediumIDs(ids ...uuid.UUID) {
+	if m.removedmedia == nil {
+		m.removedmedia = make(map[uuid.UUID]struct{})
 	}
 	for i := range ids {
-		delete(m.assets, ids[i])
-		m.removedassets[ids[i]] = struct{}{}
+		delete(m.media, ids[i])
+		m.removedmedia[ids[i]] = struct{}{}
 	}
 }
 
-// RemovedAssets returns the removed IDs of the "assets" edge to the Asset entity.
-func (m *CardMutation) RemovedAssetsIDs() (ids []uuid.UUID) {
-	for id := range m.removedassets {
+// RemovedMedia returns the removed IDs of the "media" edge to the Media entity.
+func (m *CardMutation) RemovedMediaIDs() (ids []uuid.UUID) {
+	for id := range m.removedmedia {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// AssetsIDs returns the "assets" edge IDs in the mutation.
-func (m *CardMutation) AssetsIDs() (ids []uuid.UUID) {
-	for id := range m.assets {
+// MediaIDs returns the "media" edge IDs in the mutation.
+func (m *CardMutation) MediaIDs() (ids []uuid.UUID) {
+	for id := range m.media {
 		ids = append(ids, id)
 	}
 	return
 }
 
-// ResetAssets resets all changes to the "assets" edge.
-func (m *CardMutation) ResetAssets() {
-	m.assets = nil
-	m.clearedassets = false
-	m.removedassets = nil
+// ResetMedia resets all changes to the "media" edge.
+func (m *CardMutation) ResetMedia() {
+	m.media = nil
+	m.clearedmedia = false
+	m.removedmedia = nil
 }
 
 // Where appends a list predicates to the CardMutation builder.
@@ -1508,8 +1510,8 @@ func (m *CardMutation) AddedEdges() []string {
 	if m.deck != nil {
 		edges = append(edges, card.EdgeDeck)
 	}
-	if m.assets != nil {
-		edges = append(edges, card.EdgeAssets)
+	if m.media != nil {
+		edges = append(edges, card.EdgeMedia)
 	}
 	return edges
 }
@@ -1522,9 +1524,9 @@ func (m *CardMutation) AddedIDs(name string) []ent.Value {
 		if id := m.deck; id != nil {
 			return []ent.Value{*id}
 		}
-	case card.EdgeAssets:
-		ids := make([]ent.Value, 0, len(m.assets))
-		for id := range m.assets {
+	case card.EdgeMedia:
+		ids := make([]ent.Value, 0, len(m.media))
+		for id := range m.media {
 			ids = append(ids, id)
 		}
 		return ids
@@ -1535,8 +1537,8 @@ func (m *CardMutation) AddedIDs(name string) []ent.Value {
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *CardMutation) RemovedEdges() []string {
 	edges := make([]string, 0, 2)
-	if m.removedassets != nil {
-		edges = append(edges, card.EdgeAssets)
+	if m.removedmedia != nil {
+		edges = append(edges, card.EdgeMedia)
 	}
 	return edges
 }
@@ -1545,9 +1547,9 @@ func (m *CardMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *CardMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
-	case card.EdgeAssets:
-		ids := make([]ent.Value, 0, len(m.removedassets))
-		for id := range m.removedassets {
+	case card.EdgeMedia:
+		ids := make([]ent.Value, 0, len(m.removedmedia))
+		for id := range m.removedmedia {
 			ids = append(ids, id)
 		}
 		return ids
@@ -1561,8 +1563,8 @@ func (m *CardMutation) ClearedEdges() []string {
 	if m.cleareddeck {
 		edges = append(edges, card.EdgeDeck)
 	}
-	if m.clearedassets {
-		edges = append(edges, card.EdgeAssets)
+	if m.clearedmedia {
+		edges = append(edges, card.EdgeMedia)
 	}
 	return edges
 }
@@ -1573,8 +1575,8 @@ func (m *CardMutation) EdgeCleared(name string) bool {
 	switch name {
 	case card.EdgeDeck:
 		return m.cleareddeck
-	case card.EdgeAssets:
-		return m.clearedassets
+	case card.EdgeMedia:
+		return m.clearedmedia
 	}
 	return false
 }
@@ -1597,8 +1599,8 @@ func (m *CardMutation) ResetEdge(name string) error {
 	case card.EdgeDeck:
 		m.ResetDeck()
 		return nil
-	case card.EdgeAssets:
-		m.ResetAssets()
+	case card.EdgeMedia:
+		m.ResetMedia()
 		return nil
 	}
 	return fmt.Errorf("unknown Card edge %s", name)
@@ -2341,6 +2343,7 @@ type DrawMutation struct {
 	id             *uuid.UUID
 	card_ids       *[]uuid.UUID
 	appendcard_ids []uuid.UUID
+	faces          *map[uuid.UUID]uuid.UUID
 	created_at     *time.Time
 	clearedFields  map[string]struct{}
 	deck           *uuid.UUID
@@ -2505,6 +2508,55 @@ func (m *DrawMutation) ResetCardIds() {
 	m.appendcard_ids = nil
 }
 
+// SetFaces sets the "faces" field.
+func (m *DrawMutation) SetFaces(value map[uuid.UUID]uuid.UUID) {
+	m.faces = &value
+}
+
+// Faces returns the value of the "faces" field in the mutation.
+func (m *DrawMutation) Faces() (r map[uuid.UUID]uuid.UUID, exists bool) {
+	v := m.faces
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFaces returns the old "faces" field's value of the Draw entity.
+// If the Draw object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DrawMutation) OldFaces(ctx context.Context) (v map[uuid.UUID]uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFaces is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFaces requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFaces: %w", err)
+	}
+	return oldValue.Faces, nil
+}
+
+// ClearFaces clears the value of the "faces" field.
+func (m *DrawMutation) ClearFaces() {
+	m.faces = nil
+	m.clearedFields[draw.FieldFaces] = struct{}{}
+}
+
+// FacesCleared returns if the "faces" field was cleared in this mutation.
+func (m *DrawMutation) FacesCleared() bool {
+	_, ok := m.clearedFields[draw.FieldFaces]
+	return ok
+}
+
+// ResetFaces resets all changes to the "faces" field.
+func (m *DrawMutation) ResetFaces() {
+	m.faces = nil
+	delete(m.clearedFields, draw.FieldFaces)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *DrawMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -2614,9 +2666,12 @@ func (m *DrawMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DrawMutation) Fields() []string {
-	fields := make([]string, 0, 2)
+	fields := make([]string, 0, 3)
 	if m.card_ids != nil {
 		fields = append(fields, draw.FieldCardIds)
+	}
+	if m.faces != nil {
+		fields = append(fields, draw.FieldFaces)
 	}
 	if m.created_at != nil {
 		fields = append(fields, draw.FieldCreatedAt)
@@ -2631,6 +2686,8 @@ func (m *DrawMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case draw.FieldCardIds:
 		return m.CardIds()
+	case draw.FieldFaces:
+		return m.Faces()
 	case draw.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -2644,6 +2701,8 @@ func (m *DrawMutation) OldField(ctx context.Context, name string) (ent.Value, er
 	switch name {
 	case draw.FieldCardIds:
 		return m.OldCardIds(ctx)
+	case draw.FieldFaces:
+		return m.OldFaces(ctx)
 	case draw.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -2661,6 +2720,13 @@ func (m *DrawMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCardIds(v)
+		return nil
+	case draw.FieldFaces:
+		v, ok := value.(map[uuid.UUID]uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFaces(v)
 		return nil
 	case draw.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -2698,7 +2764,11 @@ func (m *DrawMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *DrawMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(draw.FieldFaces) {
+		fields = append(fields, draw.FieldFaces)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -2711,6 +2781,11 @@ func (m *DrawMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *DrawMutation) ClearField(name string) error {
+	switch name {
+	case draw.FieldFaces:
+		m.ClearFaces()
+		return nil
+	}
 	return fmt.Errorf("unknown Draw nullable field %s", name)
 }
 
@@ -2720,6 +2795,9 @@ func (m *DrawMutation) ResetField(name string) error {
 	switch name {
 	case draw.FieldCardIds:
 		m.ResetCardIds()
+		return nil
+	case draw.FieldFaces:
+		m.ResetFaces()
 		return nil
 	case draw.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -3383,6 +3461,544 @@ func (m *IdentityMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Identity edge %s", name)
+}
+
+// MediaMutation represents an operation that mutates the Media nodes in the graph.
+type MediaMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	kind          *media.Kind
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	card          *uuid.UUID
+	clearedcard   bool
+	assets        map[uuid.UUID]struct{}
+	removedassets map[uuid.UUID]struct{}
+	clearedassets bool
+	done          bool
+	oldValue      func(context.Context) (*Media, error)
+	predicates    []predicate.Media
+}
+
+var _ ent.Mutation = (*MediaMutation)(nil)
+
+// mediaOption allows management of the mutation configuration using functional options.
+type mediaOption func(*MediaMutation)
+
+// newMediaMutation creates new mutation for the Media entity.
+func newMediaMutation(c config, op Op, opts ...mediaOption) *MediaMutation {
+	m := &MediaMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMedia,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMediaID sets the ID field of the mutation.
+func withMediaID(id uuid.UUID) mediaOption {
+	return func(m *MediaMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Media
+		)
+		m.oldValue = func(ctx context.Context) (*Media, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Media.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMedia sets the old Media of the mutation.
+func withMedia(node *Media) mediaOption {
+	return func(m *MediaMutation) {
+		m.oldValue = func(context.Context) (*Media, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MediaMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MediaMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Media entities.
+func (m *MediaMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MediaMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MediaMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Media.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetKind sets the "kind" field.
+func (m *MediaMutation) SetKind(value media.Kind) {
+	m.kind = &value
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *MediaMutation) Kind() (r media.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the Media entity.
+// If the Media object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaMutation) OldKind(ctx context.Context) (v media.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *MediaMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MediaMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MediaMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Media entity.
+// If the Media object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MediaMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MediaMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetCardID sets the "card" edge to the Card entity by id.
+func (m *MediaMutation) SetCardID(id uuid.UUID) {
+	m.card = &id
+}
+
+// ClearCard clears the "card" edge to the Card entity.
+func (m *MediaMutation) ClearCard() {
+	m.clearedcard = true
+}
+
+// CardCleared reports if the "card" edge to the Card entity was cleared.
+func (m *MediaMutation) CardCleared() bool {
+	return m.clearedcard
+}
+
+// CardID returns the "card" edge ID in the mutation.
+func (m *MediaMutation) CardID() (id uuid.UUID, exists bool) {
+	if m.card != nil {
+		return *m.card, true
+	}
+	return
+}
+
+// CardIDs returns the "card" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// CardID instead. It exists only for internal usage by the builders.
+func (m *MediaMutation) CardIDs() (ids []uuid.UUID) {
+	if id := m.card; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetCard resets all changes to the "card" edge.
+func (m *MediaMutation) ResetCard() {
+	m.card = nil
+	m.clearedcard = false
+}
+
+// AddAssetIDs adds the "assets" edge to the Asset entity by ids.
+func (m *MediaMutation) AddAssetIDs(ids ...uuid.UUID) {
+	if m.assets == nil {
+		m.assets = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.assets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAssets clears the "assets" edge to the Asset entity.
+func (m *MediaMutation) ClearAssets() {
+	m.clearedassets = true
+}
+
+// AssetsCleared reports if the "assets" edge to the Asset entity was cleared.
+func (m *MediaMutation) AssetsCleared() bool {
+	return m.clearedassets
+}
+
+// RemoveAssetIDs removes the "assets" edge to the Asset entity by IDs.
+func (m *MediaMutation) RemoveAssetIDs(ids ...uuid.UUID) {
+	if m.removedassets == nil {
+		m.removedassets = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.assets, ids[i])
+		m.removedassets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAssets returns the removed IDs of the "assets" edge to the Asset entity.
+func (m *MediaMutation) RemovedAssetsIDs() (ids []uuid.UUID) {
+	for id := range m.removedassets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// AssetsIDs returns the "assets" edge IDs in the mutation.
+func (m *MediaMutation) AssetsIDs() (ids []uuid.UUID) {
+	for id := range m.assets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAssets resets all changes to the "assets" edge.
+func (m *MediaMutation) ResetAssets() {
+	m.assets = nil
+	m.clearedassets = false
+	m.removedassets = nil
+}
+
+// Where appends a list predicates to the MediaMutation builder.
+func (m *MediaMutation) Where(ps ...predicate.Media) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MediaMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MediaMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Media, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MediaMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MediaMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Media).
+func (m *MediaMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MediaMutation) Fields() []string {
+	fields := make([]string, 0, 2)
+	if m.kind != nil {
+		fields = append(fields, media.FieldKind)
+	}
+	if m.created_at != nil {
+		fields = append(fields, media.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MediaMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case media.FieldKind:
+		return m.Kind()
+	case media.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MediaMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case media.FieldKind:
+		return m.OldKind(ctx)
+	case media.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Media field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MediaMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case media.FieldKind:
+		v, ok := value.(media.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case media.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Media field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MediaMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MediaMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MediaMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Media numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MediaMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MediaMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MediaMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Media nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MediaMutation) ResetField(name string) error {
+	switch name {
+	case media.FieldKind:
+		m.ResetKind()
+		return nil
+	case media.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Media field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MediaMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.card != nil {
+		edges = append(edges, media.EdgeCard)
+	}
+	if m.assets != nil {
+		edges = append(edges, media.EdgeAssets)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MediaMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case media.EdgeCard:
+		if id := m.card; id != nil {
+			return []ent.Value{*id}
+		}
+	case media.EdgeAssets:
+		ids := make([]ent.Value, 0, len(m.assets))
+		for id := range m.assets {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MediaMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedassets != nil {
+		edges = append(edges, media.EdgeAssets)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MediaMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case media.EdgeAssets:
+		ids := make([]ent.Value, 0, len(m.removedassets))
+		for id := range m.removedassets {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MediaMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedcard {
+		edges = append(edges, media.EdgeCard)
+	}
+	if m.clearedassets {
+		edges = append(edges, media.EdgeAssets)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MediaMutation) EdgeCleared(name string) bool {
+	switch name {
+	case media.EdgeCard:
+		return m.clearedcard
+	case media.EdgeAssets:
+		return m.clearedassets
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MediaMutation) ClearEdge(name string) error {
+	switch name {
+	case media.EdgeCard:
+		m.ClearCard()
+		return nil
+	}
+	return fmt.Errorf("unknown Media unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MediaMutation) ResetEdge(name string) error {
+	switch name {
+	case media.EdgeCard:
+		m.ResetCard()
+		return nil
+	case media.EdgeAssets:
+		m.ResetAssets()
+		return nil
+	}
+	return fmt.Errorf("unknown Media edge %s", name)
 }
 
 // UserMutation represents an operation that mutates the User nodes in the graph.

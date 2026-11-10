@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// Asset is one stored media file of a card's artwork. A single upload produces
-// several renditions, each sized for where it is shown.
+// Asset is one stored file of a media item. A single upload produces several
+// renditions, each sized for where it is shown.
 type Asset struct {
 	ent.Schema
 }
@@ -46,7 +46,7 @@ func (Asset) Fields() []ent.Field {
 
 func (Asset) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("card", Card.Type).
+		edge.From("media", Media.Type).
 			Ref("assets").
 			Unique().
 			Required().

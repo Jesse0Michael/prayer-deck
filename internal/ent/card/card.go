@@ -27,8 +27,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeDeck holds the string denoting the deck edge name in mutations.
 	EdgeDeck = "deck"
-	// EdgeAssets holds the string denoting the assets edge name in mutations.
-	EdgeAssets = "assets"
+	// EdgeMedia holds the string denoting the media edge name in mutations.
+	EdgeMedia = "media"
 	// Table holds the table name of the card in the database.
 	Table = "cards"
 	// DeckTable is the table that holds the deck relation/edge.
@@ -38,13 +38,13 @@ const (
 	DeckInverseTable = "decks"
 	// DeckColumn is the table column denoting the deck relation/edge.
 	DeckColumn = "deck_cards"
-	// AssetsTable is the table that holds the assets relation/edge.
-	AssetsTable = "assets"
-	// AssetsInverseTable is the table name for the Asset entity.
-	// It exists in this package in order to avoid circular dependency with the "asset" package.
-	AssetsInverseTable = "assets"
-	// AssetsColumn is the table column denoting the assets relation/edge.
-	AssetsColumn = "card_assets"
+	// MediaTable is the table that holds the media relation/edge.
+	MediaTable = "media"
+	// MediaInverseTable is the table name for the Media entity.
+	// It exists in this package in order to avoid circular dependency with the "media" package.
+	MediaInverseTable = "media"
+	// MediaColumn is the table column denoting the media relation/edge.
+	MediaColumn = "card_media"
 )
 
 // Columns holds all SQL columns for card fields.
@@ -131,17 +131,17 @@ func ByDeckField(field string, opts ...sql.OrderTermOption) OrderOption {
 	}
 }
 
-// ByAssetsCount orders the results by assets count.
-func ByAssetsCount(opts ...sql.OrderTermOption) OrderOption {
+// ByMediaCount orders the results by media count.
+func ByMediaCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newAssetsStep(), opts...)
+		sqlgraph.OrderByNeighborsCount(s, newMediaStep(), opts...)
 	}
 }
 
-// ByAssets orders the results by assets terms.
-func ByAssets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+// ByMedia orders the results by media terms.
+func ByMedia(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newAssetsStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newMediaStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 func newDeckStep() *sqlgraph.Step {
@@ -151,10 +151,10 @@ func newDeckStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.M2O, true, DeckTable, DeckColumn),
 	)
 }
-func newAssetsStep() *sqlgraph.Step {
+func newMediaStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(AssetsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, AssetsTable, AssetsColumn),
+		sqlgraph.To(MediaInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, MediaTable, MediaColumn),
 	)
 }

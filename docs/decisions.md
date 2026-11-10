@@ -59,14 +59,32 @@ Only the latest draw per deck is stored, enough to resume prayer time after
 closing the app. Which cards have been turned over is remembered per device in
 local storage. No draw history is kept, by design (no tracking).
 
-### Artwork renditions
+### Multiple pictures per card (Owner)
+
+A card holds any number of `Media` items, each one picture with its own
+renditions. Media is ordered newest first, and the newest is the card's primary
+face, shown in lists and the editor. Uploading adds a new primary, and nothing
+is replaced. `Media.kind` is `image` today; video can join as another kind.
+
+When a card is dealt, the server picks one of its media at random and records
+it in the draw's `faces`, so resuming a draw shows the same pictures. The
+discard pile shows each card's primary face, because only the latest draw is
+kept.
+
+The editor shows the primary image above a gallery of the rest (two rows of
+three per page). Gallery images can be removed, and the primary can't be
+removed from the UI until a newer image takes its place. Picked images and
+removals are staged locally and applied on Save, so Cancel leaves the card
+untouched.
+
+### Image renditions
 
 Each upload is stored three ways: the untouched **original**, a JPEG **display**
 image (at most 1600px on its long edge, used for the card face), and a
 **thumbnail** (at most 480px, used in lists). A 2.3 MB example PNG becomes a
 roughly 240 KB face. Transparent artwork is laid on the card-stock color.
-`Asset.rendition` is an enum, so video loops and alternate variants can join
-later as new renditions or a variant grouping.
+`Asset.rendition` is an enum, so alternate sizes can join later as new
+renditions.
 
 Artwork is served through time-limited signed URLs (six hours by default). Signed
 URLs change on every response, which limits browser caching. Before launch,
