@@ -1,17 +1,30 @@
-import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { MotionConfig } from "motion/react";
+import { useEffect, useState } from "react";
 import { ApiClient } from "./api/client";
-import type { Deck, User } from "./api/types";
+import type { User } from "./api/types";
 import { loadAPIURL } from "./lib/config";
-import { DrawView } from "./views/DrawView";
-import { ManageView } from "./views/ManageView";
+import { DeckApp } from "./views/DeckApp";
+import { Landing } from "./views/Landing";
 import { SignIn } from "./views/SignIn";
 
-type View = "draw" | "manage";
+/** The current location hash, e.g. "#/about"; empty when at the root. */
+function useHash(): string {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const onChange = () => {
+      setHash(window.location.hash);
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", onChange);
+    return () => window.removeEventListener("hashchange", onChange);
+  }, []);
+  return hash;
+}
 
 export function App() {
   const [api, setApi] = useState<ApiClient | null>(null);
   const [signedIn, setSignedIn] = useState(false);
+  const hash = useHash();
 
   useEffect(() => {
     loadAPIURL().then((url) => {
@@ -25,72 +38,34 @@ export function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="table-surface" />
-      {!api ? null : signedIn ? <Home api={api} /> : <SignIn api={api} />}
+      {!api ? null : hash === "#/about" ? (
+        <Landing signedIn={signedIn} />
+      ) : signedIn ? (
+        <Home api={api} />
+      ) : hash === "#/signin" ? (
+        <SignIn api={api} />
+      ) : (
+        <Landing signedIn={false} />
+      )}
     </MotionConfig>
   );
 }
 
 function Home({ api }: { api: ApiClient }) {
   const [user, setUser] = useState<User | null>(null);
-  const [decks, setDecks] = useState<Deck[]>([]);
-  const [view, setView] = useState<View>("draw");
-  const [error, setError] = useState<string | null>(null);
-
-  const refreshDecks = useCallback(() => {
-    api
-      .decks()
-      .then(setDecks)
-      .catch((err: Error) => setError(err.message));
-  }, [api]);
 
   useEffect(() => {
     api.me().then(setUser).catch(() => undefined);
-    refreshDecks();
-  }, [api, refreshDecks]);
-
-  // The UI presents a single deck; the first one holds every card.
-  const deck = decks[0];
+  }, [api]);
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <span className="hand-title brand">Prayer Deck</span>
-        <nav className="tabs" aria-label="Sections">
-          {(["draw", "manage"] as const).map((v) => (
-            <button key={v} type="button" className={`tab${view === v ? " active" : ""}`} onClick={() => setView(v)}>
-              {view === v && <motion.span layoutId="tab-ink" className="tab-ink" transition={{ type: "spring", stiffness: 380, damping: 30 }} />}
-              <span className="tab-label">{v === "draw" ? "Draw" : "Cards"}</span>
-            </button>
-          ))}
-        </nav>
-        <span className="spacer" />
+    <DeckApp
+      api={api}
+      actions={
         <button type="button" className="btn btn-quiet account" onClick={() => api.signOut()} title={user?.email}>
           Sign out
         </button>
-      </header>
-
-      {error && <p className="error-text">{error}</p>}
-
-      <main className="app-main">
-        <AnimatePresence mode="wait">
-          {deck && (
-            <motion.div
-              key={`${view}-${deck.id}`}
-              className="view"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-            >
-              {view === "draw" ? (
-                <DrawView api={api} deck={deck} onDeckChanged={refreshDecks} onManage={() => setView("manage")} />
-              ) : (
-                <ManageView api={api} deck={deck} onDecksChanged={refreshDecks} />
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
-    </div>
+      }
+    />
   );
 }

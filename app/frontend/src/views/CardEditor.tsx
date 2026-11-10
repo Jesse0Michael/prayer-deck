@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { ApiClient } from "../api/client";
+import type { DeckApi } from "../api/deckApi";
 import type { Card, Media } from "../api/types";
 import { CardFace } from "../components/CardFace";
 import { NotesPanel, type NotesPanelHandle } from "../components/NotesPanel";
 
 interface CardEditorProps {
-  api: ApiClient;
+  api: DeckApi;
   deckID: string;
   /** The card to edit; omitted when adding a new card. */
   card?: Card;

@@ -1,3 +1,4 @@
+import type { DeckApi } from "./deckApi";
 import type { Card, CardInput, Deck, Draw, LoginProvider, Note, Tokens, User } from "./types";
 
 const TOKENS_KEY = "prayer-deck.tokens";
@@ -17,7 +18,7 @@ type Listener = (signedIn: boolean) => void;
  * ApiClient talks to the Prayer Deck API. It keeps the token pair in local
  * storage and transparently refreshes an expired access token once per request.
  */
-export class ApiClient {
+export class ApiClient implements DeckApi {
   private tokens: Tokens | null;
   private refreshing: Promise<boolean> | null = null;
   private listeners = new Set<Listener>();
