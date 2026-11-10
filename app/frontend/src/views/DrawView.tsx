@@ -324,7 +324,7 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       {createPortal(
         <AnimatePresence>
           {draw && focusIndex !== null && (
-            <FocusCard card={draw.cards[focusIndex]} onClose={() => setFocusIndex(null)} />
+            <FocusCard api={api} card={draw.cards[focusIndex]} onClose={() => setFocusIndex(null)} />
           )}
         </AnimatePresence>,
         document.body,

@@ -1,12 +1,17 @@
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
+import type { ApiClient } from "../api/client";
 import type { DealtCard } from "../api/types";
+import { NotesPanel } from "../components/NotesPanel";
 import { PlayingCard } from "../components/PlayingCard";
 
 interface FocusCardProps {
+  api: ApiClient;
   card: DealtCard;
   onClose: () => void;
 }
+
+const NOTES_PAGE_SIZE = 3;
 
 // Inline because the CSS minifier keeps only the -webkit- form of backdrop-filter.
 const blur = { backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" };
@@ -23,7 +28,7 @@ function useFocusCardWidth(): number {
 }
 
 /** A drawn card held up close, with room for the notes that bring the person to mind. */
-export function FocusCard({ card, onClose }: FocusCardProps) {
+export function FocusCard({ api, card, onClose }: FocusCardProps) {
   const width = useFocusCardWidth();
 
   useEffect(() => {
@@ -64,7 +69,7 @@ export function FocusCard({ card, onClose }: FocusCardProps) {
           transition={{ delay: 0.15, duration: 0.35 }}
         >
           <h2 className="hand-name">{card.name}</h2>
-          {card.notes && <p className="focus-notes-text">{card.notes}</p>}
+          <NotesPanel api={api} cardID={card.id} pageSize={NOTES_PAGE_SIZE} />
           <button type="button" className="btn" onClick={onClose}>
             Back to the table
           </button>

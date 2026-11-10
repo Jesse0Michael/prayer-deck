@@ -20,6 +20,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/draw"
 	"github.com/jesse0michael/prayer-deck/internal/ent/identity"
 	"github.com/jesse0michael/prayer-deck/internal/ent/media"
+	"github.com/jesse0michael/prayer-deck/internal/ent/note"
 	"github.com/jesse0michael/prayer-deck/internal/ent/predicate"
 	"github.com/jesse0michael/prayer-deck/internal/ent/user"
 )
@@ -60,8 +61,7 @@ type Deck struct {
 
 // CardInput carries card fields to create or change. Nil fields are left unchanged on update.
 type CardInput struct {
-	Name  *string
-	Notes *string
+	Name *string
 }
 
 // MediaInput describes a new media item and its stored renditions.
@@ -122,6 +122,15 @@ type Store interface {
 	UpdateCard(ctx context.Context, userID, cardID uuid.UUID, in CardInput) (*ent.Card, error)
 	// DeleteCard removes a card, returning the media keys to remove from storage.
 	DeleteCard(ctx context.Context, userID, cardID uuid.UUID) ([]string, error)
+	// Notes lists a card's notes newest first, returning one page and the card's total note count.
+	Notes(ctx context.Context, userID, cardID uuid.UUID, limit, offset int) ([]*ent.Note, int, error)
+	// CreateNote adds a note to a card.
+	CreateNote(ctx context.Context, userID, cardID uuid.UUID, text string) (*ent.Note, error)
+	// UpdateNote changes a note's text.
+	UpdateNote(ctx context.Context, userID, noteID uuid.UUID, text string) (*ent.Note, error)
+	// DeleteNote removes a note.
+	DeleteNote(ctx context.Context, userID, noteID uuid.UUID) error
+
 	// AddMedia adds a media item to a card, making it the card's primary face.
 	AddMedia(ctx context.Context, userID, cardID uuid.UUID, in MediaInput) (*ent.Card, error)
 	// DeleteMedia removes a card's media item, returning the keys to remove from storage.
@@ -286,6 +295,9 @@ func (s *entStore) DeleteDeck(ctx context.Context, userID, deckID uuid.UUID) ([]
 	if _, err := tx.Media.Delete().Where(media.HasCardWith(card.HasDeckWith(deck.ID(deckID)))).Exec(ctx); err != nil {
 		return nil, rollback(tx, fmt.Errorf("failed to delete deck media: %w", err))
 	}
+	if _, err := tx.Note.Delete().Where(note.HasCardWith(card.HasDeckWith(deck.ID(deckID)))).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to delete deck notes: %w", err))
+	}
 	if _, err := tx.Card.Delete().Where(card.HasDeckWith(deck.ID(deckID))).Exec(ctx); err != nil {
 		return nil, rollback(tx, fmt.Errorf("failed to delete deck cards: %w", err))
 	}
@@ -350,9 +362,6 @@ func (s *entStore) CreateCard(ctx context.Context, userID, deckID uuid.UUID, in 
 	if in.Name != nil {
 		create.SetName(*in.Name)
 	}
-	if in.Notes != nil {
-		create.SetNotes(*in.Notes)
-	}
 	c, err := create.Save(ctx)
 	if err != nil {
 		return nil, mapError("failed to create card", err)
@@ -364,9 +373,6 @@ func (s *entStore) UpdateCard(ctx context.Context, userID, cardID uuid.UUID, in 
 	update := s.client.Card.Update().Where(card.ID(cardID), ownedCard(userID))
 	if in.Name != nil {
 		update.SetName(*in.Name)
-	}
-	if in.Notes != nil {
-		update.SetNotes(*in.Notes)
 	}
 	n, err := update.Save(ctx)
 	if err != nil {
@@ -396,11 +402,84 @@ func (s *entStore) DeleteCard(ctx context.Context, userID, cardID uuid.UUID) ([]
 	if _, err := tx.Media.Delete().Where(media.HasCardWith(card.ID(cardID))).Exec(ctx); err != nil {
 		return nil, rollback(tx, fmt.Errorf("failed to delete card media: %w", err))
 	}
+	if _, err := tx.Note.Delete().Where(note.HasCardWith(card.ID(cardID))).Exec(ctx); err != nil {
+		return nil, rollback(tx, fmt.Errorf("failed to delete card notes: %w", err))
+	}
 	if err := tx.Card.DeleteOneID(cardID).Exec(ctx); err != nil {
 		return nil, rollback(tx, fmt.Errorf("failed to delete card: %w", err))
 	}
 
 	return keys, commit(tx)
+}
+
+func (s *entStore) Notes(ctx context.Context, userID, cardID uuid.UUID, limit, offset int) ([]*ent.Note, int, error) {
+	if _, err := s.card(ctx, s.client, userID, cardID); err != nil {
+		return nil, 0, err
+	}
+
+	query := s.client.Note.Query().Where(note.HasCardWith(card.ID(cardID)))
+	total, err := query.Clone().Count(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count notes: %w", err)
+	}
+	notes, err := query.
+		Order(ent.Desc(note.FieldCreatedAt), ent.Desc(note.FieldID)).
+		Limit(limit).
+		Offset(offset).
+		All(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list notes: %w", err)
+	}
+	return notes, total, nil
+}
+
+func (s *entStore) CreateNote(ctx context.Context, userID, cardID uuid.UUID, text string) (*ent.Note, error) {
+	if _, err := s.card(ctx, s.client, userID, cardID); err != nil {
+		return nil, err
+	}
+	now := s.timestamp()
+	n, err := s.client.Note.Create().
+		SetCardID(cardID).
+		SetText(text).
+		SetCreatedAt(now).
+		SetUpdatedAt(now).
+		Save(ctx)
+	if err != nil {
+		return nil, mapError("failed to create note", err)
+	}
+	return n, nil
+}
+
+func (s *entStore) UpdateNote(ctx context.Context, userID, noteID uuid.UUID, text string) (*ent.Note, error) {
+	n, err := s.client.Note.Update().
+		Where(note.ID(noteID), note.HasCardWith(ownedCard(userID))).
+		SetText(text).
+		SetUpdatedAt(s.timestamp()).
+		Save(ctx)
+	if err != nil {
+		return nil, mapError("failed to update note", err)
+	}
+	if n == 0 {
+		return nil, ErrNotFound
+	}
+	updated, err := s.client.Note.Get(ctx, noteID)
+	if err != nil {
+		return nil, mapError("failed to get note", err)
+	}
+	return updated, nil
+}
+
+func (s *entStore) DeleteNote(ctx context.Context, userID, noteID uuid.UUID) error {
+	n, err := s.client.Note.Delete().
+		Where(note.ID(noteID), note.HasCardWith(ownedCard(userID))).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to delete note: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *entStore) AddMedia(ctx context.Context, userID, cardID uuid.UUID, in MediaInput) (*ent.Card, error) {

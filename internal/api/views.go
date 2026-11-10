@@ -54,10 +54,34 @@ type mediaView struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+type noteView struct {
+	ID        uuid.UUID `json:"id"`
+	Text      string    `json:"text"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func toNoteView(n *ent.Note) noteView {
+	return noteView{ID: n.ID, Text: n.Text, CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt}
+}
+
+// notesView is one page of a card's notes; Total counts every note on the card.
+type notesView struct {
+	Notes []noteView `json:"notes"`
+	Total int        `json:"total"`
+}
+
+func toNotesView(notes []*ent.Note, total int) notesView {
+	views := make([]noteView, len(notes))
+	for i, n := range notes {
+		views[i] = toNoteView(n)
+	}
+	return notesView{Notes: views, Total: total}
+}
+
 type cardView struct {
 	ID        uuid.UUID   `json:"id"`
 	Name      string      `json:"name"`
-	Notes     string      `json:"notes"`
 	Media     []mediaView `json:"media"`
 	CreatedAt time.Time   `json:"created_at"`
 	UpdatedAt time.Time   `json:"updated_at"`
@@ -67,7 +91,6 @@ func (s *Server) toCardView(ctx context.Context, c *ent.Card) (cardView, error) 
 	view := cardView{
 		ID:        c.ID,
 		Name:      c.Name,
-		Notes:     c.Notes,
 		Media:     make([]mediaView, len(c.Edges.Media)),
 		CreatedAt: c.CreatedAt,
 		UpdatedAt: c.UpdatedAt,

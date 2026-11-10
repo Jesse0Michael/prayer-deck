@@ -106,7 +106,27 @@ That flow isn't built yet.
 ### Migrations
 
 The API runs ent's automatic migration at startup. Switch to versioned
-migrations (Atlas) before production data exists.
+migrations (Atlas) before production data exists. **To do:** this needs a
+decision and setup before the next breaking schema change.
+
+Automatic migration only adds tables and columns. It can't backfill data, so
+a change that makes a new column required fails on a database with rows. The
+move from `Card → Asset` to `Card → Media → Asset` hit this, and local
+databases had to be wiped (`make down && make up`).
+
+Setup outline:
+
+- Enable ent's `sql/versioned-migration` feature and add an `atlas.hcl` that
+  points at the ent schema, with a throwaway Postgres as the dev database.
+- Generate a baseline migration of the current schema and commit `migrations/`
+  with its `atlas.sum`. Mark it applied on any existing database with
+  `atlas migrate apply --baseline`.
+- Replace `Schema.Create` in `cmd/app/main.go` with `atlas migrate apply`,
+  run before the API starts.
+- For each schema change, generate a migration with `atlas migrate diff`, then
+  hand-edit it to add any data backfill (add the column nullable, backfill,
+  then make it required). Run `atlas migrate hash` and `atlas migrate lint`.
+- Add `atlas migrate validate` to `make lint`.
 
 ## Still open
 

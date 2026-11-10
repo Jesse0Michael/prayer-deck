@@ -12,6 +12,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/draw"
 	"github.com/jesse0michael/prayer-deck/internal/ent/identity"
 	"github.com/jesse0michael/prayer-deck/internal/ent/media"
+	"github.com/jesse0michael/prayer-deck/internal/ent/note"
 	"github.com/jesse0michael/prayer-deck/internal/ent/schema"
 	"github.com/jesse0michael/prayer-deck/internal/ent/user"
 )
@@ -34,14 +35,14 @@ func init() {
 	_ = cardFields
 	// cardDescName is the schema descriptor for name field.
 	cardDescName := cardFields[1].Descriptor()
-	// card.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	card.NameValidator = cardDescName.Validators[0].(func(string) error)
+	// card.DefaultName holds the default value on creation for the name field.
+	card.DefaultName = cardDescName.Default.(string)
 	// cardDescCreatedAt is the schema descriptor for created_at field.
-	cardDescCreatedAt := cardFields[4].Descriptor()
+	cardDescCreatedAt := cardFields[3].Descriptor()
 	// card.DefaultCreatedAt holds the default value on creation for the created_at field.
 	card.DefaultCreatedAt = cardDescCreatedAt.Default.(func() time.Time)
 	// cardDescUpdatedAt is the schema descriptor for updated_at field.
-	cardDescUpdatedAt := cardFields[5].Descriptor()
+	cardDescUpdatedAt := cardFields[4].Descriptor()
 	// card.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	card.DefaultUpdatedAt = cardDescUpdatedAt.Default.(func() time.Time)
 	// card.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -104,6 +105,26 @@ func init() {
 	mediaDescID := mediaFields[0].Descriptor()
 	// media.DefaultID holds the default value on creation for the id field.
 	media.DefaultID = mediaDescID.Default.(func() uuid.UUID)
+	noteFields := schema.Note{}.Fields()
+	_ = noteFields
+	// noteDescText is the schema descriptor for text field.
+	noteDescText := noteFields[1].Descriptor()
+	// note.TextValidator is a validator for the "text" field. It is called by the builders before save.
+	note.TextValidator = noteDescText.Validators[0].(func(string) error)
+	// noteDescCreatedAt is the schema descriptor for created_at field.
+	noteDescCreatedAt := noteFields[2].Descriptor()
+	// note.DefaultCreatedAt holds the default value on creation for the created_at field.
+	note.DefaultCreatedAt = noteDescCreatedAt.Default.(func() time.Time)
+	// noteDescUpdatedAt is the schema descriptor for updated_at field.
+	noteDescUpdatedAt := noteFields[3].Descriptor()
+	// note.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	note.DefaultUpdatedAt = noteDescUpdatedAt.Default.(func() time.Time)
+	// note.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	note.UpdateDefaultUpdatedAt = noteDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// noteDescID is the schema descriptor for id field.
+	noteDescID := noteFields[0].Descriptor()
+	// note.DefaultID holds the default value on creation for the id field.
+	note.DefaultID = noteDescID.Default.(func() uuid.UUID)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescCreatedAt is the schema descriptor for created_at field.

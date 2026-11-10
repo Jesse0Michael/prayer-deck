@@ -118,6 +118,21 @@ func (mr *MockStoreMockRecorder) CreateDeck(ctx, userID, name any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDeck", reflect.TypeOf((*MockStore)(nil).CreateDeck), ctx, userID, name)
 }
 
+// CreateNote mocks base method.
+func (m *MockStore) CreateNote(ctx context.Context, userID, cardID uuid.UUID, text string) (*ent.Note, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateNote", ctx, userID, cardID, text)
+	ret0, _ := ret[0].(*ent.Note)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateNote indicates an expected call of CreateNote.
+func (mr *MockStoreMockRecorder) CreateNote(ctx, userID, cardID, text any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNote", reflect.TypeOf((*MockStore)(nil).CreateNote), ctx, userID, cardID, text)
+}
+
 // CurrentDraw mocks base method.
 func (m *MockStore) CurrentDraw(ctx context.Context, userID, deckID uuid.UUID) (*store.Draw, error) {
 	m.ctrl.T.Helper()
@@ -193,6 +208,20 @@ func (mr *MockStoreMockRecorder) DeleteMedia(ctx, userID, cardID, mediaID any) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMedia", reflect.TypeOf((*MockStore)(nil).DeleteMedia), ctx, userID, cardID, mediaID)
 }
 
+// DeleteNote mocks base method.
+func (m *MockStore) DeleteNote(ctx context.Context, userID, noteID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteNote", ctx, userID, noteID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteNote indicates an expected call of DeleteNote.
+func (mr *MockStoreMockRecorder) DeleteNote(ctx, userID, noteID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNote", reflect.TypeOf((*MockStore)(nil).DeleteNote), ctx, userID, noteID)
+}
+
 // Draw mocks base method.
 func (m *MockStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count int, reshuffle bool) (*store.Draw, error) {
 	m.ctrl.T.Helper()
@@ -206,6 +235,22 @@ func (m *MockStore) Draw(ctx context.Context, userID, deckID uuid.UUID, count in
 func (mr *MockStoreMockRecorder) Draw(ctx, userID, deckID, count, reshuffle any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Draw", reflect.TypeOf((*MockStore)(nil).Draw), ctx, userID, deckID, count, reshuffle)
+}
+
+// Notes mocks base method.
+func (m *MockStore) Notes(ctx context.Context, userID, cardID uuid.UUID, limit, offset int) ([]*ent.Note, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Notes", ctx, userID, cardID, limit, offset)
+	ret0, _ := ret[0].([]*ent.Note)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Notes indicates an expected call of Notes.
+func (mr *MockStoreMockRecorder) Notes(ctx, userID, cardID, limit, offset any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Notes", reflect.TypeOf((*MockStore)(nil).Notes), ctx, userID, cardID, limit, offset)
 }
 
 // RenameDeck mocks base method.
@@ -266,6 +311,21 @@ func (m *MockStore) UpdateCard(ctx context.Context, userID, cardID uuid.UUID, in
 func (mr *MockStoreMockRecorder) UpdateCard(ctx, userID, cardID, in any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCard", reflect.TypeOf((*MockStore)(nil).UpdateCard), ctx, userID, cardID, in)
+}
+
+// UpdateNote mocks base method.
+func (m *MockStore) UpdateNote(ctx context.Context, userID, noteID uuid.UUID, text string) (*ent.Note, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateNote", ctx, userID, noteID, text)
+	ret0, _ := ret[0].(*ent.Note)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateNote indicates an expected call of UpdateNote.
+func (mr *MockStoreMockRecorder) UpdateNote(ctx, userID, noteID, text any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateNote", reflect.TypeOf((*MockStore)(nil).UpdateNote), ctx, userID, noteID, text)
 }
 
 // User mocks base method.

@@ -37,8 +37,7 @@ var (
 	// CardsColumns holds the columns for the "cards" table.
 	CardsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "name", Type: field.TypeString},
-		{Name: "notes", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "name", Type: field.TypeString, Default: ""},
 		{Name: "last_drawn_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -52,7 +51,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "cards_decks_cards",
-				Columns:    []*schema.Column{CardsColumns[6]},
+				Columns:    []*schema.Column{CardsColumns[5]},
 				RefColumns: []*schema.Column{DecksColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -161,6 +160,28 @@ var (
 			},
 		},
 	}
+	// NotesColumns holds the columns for the "notes" table.
+	NotesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "text", Type: field.TypeString, Size: 2147483647},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "card_notes", Type: field.TypeUUID},
+	}
+	// NotesTable holds the schema information for the "notes" table.
+	NotesTable = &schema.Table{
+		Name:       "notes",
+		Columns:    NotesColumns,
+		PrimaryKey: []*schema.Column{NotesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "notes_cards_notes",
+				Columns:    []*schema.Column{NotesColumns[4]},
+				RefColumns: []*schema.Column{CardsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -184,6 +205,7 @@ var (
 		DrawsTable,
 		IdentitiesTable,
 		MediaTable,
+		NotesTable,
 		UsersTable,
 	}
 )
@@ -195,4 +217,5 @@ func init() {
 	DrawsTable.ForeignKeys[0].RefTable = DecksTable
 	IdentitiesTable.ForeignKeys[0].RefTable = UsersTable
 	MediaTable.ForeignKeys[0].RefTable = CardsTable
+	NotesTable.ForeignKeys[0].RefTable = CardsTable
 }

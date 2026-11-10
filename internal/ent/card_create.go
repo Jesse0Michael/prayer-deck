@@ -14,6 +14,7 @@ import (
 	"github.com/jesse0michael/prayer-deck/internal/ent/card"
 	"github.com/jesse0michael/prayer-deck/internal/ent/deck"
 	"github.com/jesse0michael/prayer-deck/internal/ent/media"
+	"github.com/jesse0michael/prayer-deck/internal/ent/note"
 )
 
 // CardCreate is the builder for creating a Card entity.
@@ -29,16 +30,10 @@ func (_c *CardCreate) SetName(v string) *CardCreate {
 	return _c
 }
 
-// SetNotes sets the "notes" field.
-func (_c *CardCreate) SetNotes(v string) *CardCreate {
-	_c.mutation.SetNotes(v)
-	return _c
-}
-
-// SetNillableNotes sets the "notes" field if the given value is not nil.
-func (_c *CardCreate) SetNillableNotes(v *string) *CardCreate {
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_c *CardCreate) SetNillableName(v *string) *CardCreate {
 	if v != nil {
-		_c.SetNotes(*v)
+		_c.SetName(*v)
 	}
 	return _c
 }
@@ -125,6 +120,21 @@ func (_c *CardCreate) AddMedia(v ...*Media) *CardCreate {
 	return _c.AddMediumIDs(ids...)
 }
 
+// AddNoteIDs adds the "notes" edge to the Note entity by IDs.
+func (_c *CardCreate) AddNoteIDs(ids ...uuid.UUID) *CardCreate {
+	_c.mutation.AddNoteIDs(ids...)
+	return _c
+}
+
+// AddNotes adds the "notes" edges to the Note entity.
+func (_c *CardCreate) AddNotes(v ...*Note) *CardCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNoteIDs(ids...)
+}
+
 // Mutation returns the CardMutation object of the builder.
 func (_c *CardCreate) Mutation() *CardMutation {
 	return _c.mutation
@@ -160,6 +170,10 @@ func (_c *CardCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *CardCreate) defaults() {
+	if _, ok := _c.mutation.Name(); !ok {
+		v := card.DefaultName
+		_c.mutation.SetName(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := card.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -178,11 +192,6 @@ func (_c *CardCreate) defaults() {
 func (_c *CardCreate) check() error {
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Card.name"`)}
-	}
-	if v, ok := _c.mutation.Name(); ok {
-		if err := card.NameValidator(v); err != nil {
-			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Card.name": %w`, err)}
-		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Card.created_at"`)}
@@ -232,10 +241,6 @@ func (_c *CardCreate) createSpec() (*Card, *sqlgraph.CreateSpec) {
 		_spec.SetField(card.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
-	if value, ok := _c.mutation.Notes(); ok {
-		_spec.SetField(card.FieldNotes, field.TypeString, value)
-		_node.Notes = value
-	}
 	if value, ok := _c.mutation.LastDrawnAt(); ok {
 		_spec.SetField(card.FieldLastDrawnAt, field.TypeTime, value)
 		_node.LastDrawnAt = &value
@@ -274,6 +279,22 @@ func (_c *CardCreate) createSpec() (*Card, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(media.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.NotesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   card.NotesTable,
+			Columns: []string{card.NotesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(note.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
