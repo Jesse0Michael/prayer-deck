@@ -1,4 +1,4 @@
-// Command app is the Prayer Deck API: accounts, decks, cards, artwork, and draws.
+// Command server is the Prayer Deck API: accounts, decks, cards, artwork, and draws.
 package main
 
 import (

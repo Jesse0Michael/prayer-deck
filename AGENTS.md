@@ -70,7 +70,7 @@ language. Keep the owner's decisions separate from your recommendations.
 
 ```text
 api/openapi.yaml        REST contract, the source of truth for the TS client types
-cmd/app                 API entrypoint (boot.App runner); builds to bin/prayer-deck-api
+cmd/server              API entrypoint (boot.App runner); builds to bin/prayer-deck-api
 internal/api            HTTP handlers, routing, CORS, request logging
 internal/store          Store interface + ent implementation (all queries scoped to the user)
 internal/media          S3/MinIO storage + image renditions (original, display, thumbnail)
