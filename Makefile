@@ -6,7 +6,7 @@ build: build-api build-web # Build all binaries into bin/.
 
 .PHONY: build-api
 build-api: # Build the API server.
-	go build -o bin/prayer-deck-api ./cmd/app
+	go build -o bin/prayer-deck-api ./cmd/server
 
 .PHONY: build-web
 build-web: # Build the web client as a Wails server-mode binary.
@@ -49,7 +49,7 @@ run: # Run the API locally against the Docker Postgres and MinIO. Loads .env if 
 	POSTGRES_PORT=$${POSTGRES_HOST_PORT:-5434} \
 	POSTGRES_USER=prayerdeck POSTGRES_PASSWORD=prayerdeck POSTGRES_DB=prayerdeck POSTGRES_SSLMODE=disable \
 	STORAGE_ACCESS_KEY=prayerdeck STORAGE_SECRET_KEY=prayerdeck-secret STORAGE_CREATE_BUCKET=true \
-	go run ./cmd/app
+	go run ./cmd/server
 
 .PHONY: dev-web
 dev-web: # Run the frontend with hot reload at http://127.0.0.1:9245 against the API on :8080.

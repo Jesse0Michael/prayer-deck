@@ -121,7 +121,7 @@ Setup outline:
 - Generate a baseline migration of the current schema and commit `migrations/`
   with its `atlas.sum`. Mark it applied on any existing database with
   `atlas migrate apply --baseline`.
-- Replace `Schema.Create` in `cmd/app/main.go` with `atlas migrate apply`,
+- Replace `Schema.Create` in `cmd/server/main.go` with `atlas migrate apply`,
   run before the API starts.
 - For each schema change, generate a migration with `atlas migrate diff`, then
   hand-edit it to add any data backfill (add the column nullable, backfill,
