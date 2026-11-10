@@ -1,0 +1,535 @@
+openapi: 3.0.3
+info:
+  title: Prayer Deck API
+  version: 0.1.0
+  description: |
+    Accounts, decks, cards, artwork, and draws for Prayer Deck.
+
+    Sign-in exchanges a provider ID token for a Prayer Deck access/refresh
+    token pair. Every other endpoint takes the access token as a bearer token.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearer: []
+paths:
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Healthy
+        "503":
+          description: A dependency is unavailable
+  /v1/tokens:
+    get:
+      summary: List enabled sign-in providers
+      security: []
+      responses:
+        "200":
+          description: Providers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginProviders"
+  /v1/tokens/{provider}:
+    post:
+      summary: Exchange a provider ID token for a token pair
+      description: |
+        `google` takes a Google ID token. `dev` (local development only) takes
+        an email address as its ID token. A new sign-in links to an existing
+        account with the same provider-verified email, or creates an account
+        with a starter deck.
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            example: google
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token]
+              properties:
+                id_token:
+                  type: string
+      responses:
+        "200":
+          description: Tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tokens"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /v1/tokens/refresh:
+    post:
+      summary: Exchange a refresh token for a new token pair
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: Tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tokens"
+        "401":
+          $ref: "#/components/responses/Error"
+  /v1/me:
+    get:
+      summary: The signed-in account
+      responses:
+        "200":
+          description: Account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "403":
+          $ref: "#/components/responses/Error"
+  /v1/decks:
+    get:
+      summary: List decks
+      responses:
+        "200":
+          description: Decks, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [decks]
+                properties:
+                  decks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Deck"
+    post:
+      summary: Create a deck
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeckInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deck"
+        "400":
+          $ref: "#/components/responses/Error"
+  /v1/decks/{deckID}:
+    parameters:
+      - $ref: "#/components/parameters/DeckID"
+    patch:
+      summary: Rename a deck
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeckInput"
+      responses:
+        "200":
+          description: Renamed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deck"
+        "404":
+          $ref: "#/components/responses/Error"
+    delete:
+      summary: Delete a deck with its cards and artwork
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          description: The account's only deck cannot be deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Errors"
+  /v1/decks/{deckID}/shuffle:
+    parameters:
+      - $ref: "#/components/parameters/DeckID"
+    post:
+      summary: Return every card to the draw pool
+      responses:
+        "200":
+          description: Shuffled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deck"
+        "404":
+          $ref: "#/components/responses/Error"
+  /v1/decks/{deckID}/cards:
+    parameters:
+      - $ref: "#/components/parameters/DeckID"
+    get:
+      summary: List a deck's cards
+      responses:
+        "200":
+          description: Cards, by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cards]
+                properties:
+                  cards:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Card"
+        "404":
+          $ref: "#/components/responses/Error"
+    post:
+      summary: Add a card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/CardInput"
+                - required: [name]
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /v1/cards/{cardID}:
+    parameters:
+      - $ref: "#/components/parameters/CardID"
+    get:
+      summary: Get a card
+      responses:
+        "200":
+          description: Card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "404":
+          $ref: "#/components/responses/Error"
+    patch:
+      summary: Change a card's fields
+      description: Omitted fields are left unchanged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+    delete:
+      summary: Delete a card and its artwork
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/Error"
+  /v1/cards/{cardID}/artwork:
+    parameters:
+      - $ref: "#/components/parameters/CardID"
+    put:
+      summary: Replace a card's artwork
+      description: |
+        Stores the upload plus a card-face display rendition and a thumbnail.
+        Accepts PNG, JPEG, WebP, or GIF up to 25 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Card with its new artwork
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "413":
+          $ref: "#/components/responses/Error"
+        "415":
+          $ref: "#/components/responses/Error"
+  /v1/decks/{deckID}/draws:
+    parameters:
+      - $ref: "#/components/parameters/DeckID"
+    post:
+      summary: Deal a new hand
+      description: |
+        Deals cards not yet drawn in the current pass through the deck. When
+        the pass runs out the deck reshuffles and the hand is completed from
+        the rest. Replaces the deck's current draw.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 3
+      responses:
+        "201":
+          description: Dealt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Draw"
+        "400":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "422":
+          description: The deck has no cards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Errors"
+  /v1/decks/{deckID}/draws/current:
+    parameters:
+      - $ref: "#/components/parameters/DeckID"
+    get:
+      summary: The most recent hand dealt from a deck
+      responses:
+        "200":
+          description: Current draw
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Draw"
+        "404":
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DeckID:
+      name: deckID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CardID:
+      name: cardID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Errors"
+  schemas:
+    Errors:
+      type: object
+      required: [errors]
+      properties:
+        requestID:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [message]
+            properties:
+              message:
+                type: string
+              details:
+                type: string
+    LoginProviders:
+      type: object
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          items:
+            type: object
+            required: [name]
+            properties:
+              name:
+                type: string
+                example: google
+              client_id:
+                type: string
+                description: Public OAuth client ID the client starts sign-in with.
+    Tokens:
+      type: object
+      required: [subject, access_token, refresh_token]
+      properties:
+        subject:
+          type: string
+          format: uuid
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        picture_url:
+          type: string
+    DeckInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    Deck:
+      type: object
+      required: [id, name, card_count, remaining, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        card_count:
+          type: integer
+        remaining:
+          type: integer
+          description: Cards left before the deck reshuffles.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CardKind:
+      type: string
+      enum: [person, couple, family]
+    CardInput:
+      type: object
+      properties:
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/CardKind"
+        details:
+          type: string
+          description: Personal touches such as a hobby, pet, or favorite place.
+    Artwork:
+      type: object
+      required: [display_url, thumbnail_url, original_url, width, height]
+      description: Time-limited URLs to each rendition. Width and height are the display rendition's.
+      properties:
+        display_url:
+          type: string
+        thumbnail_url:
+          type: string
+        original_url:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+    Card:
+      type: object
+      required: [id, name, kind, details, artwork, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/CardKind"
+        details:
+          type: string
+        artwork:
+          allOf:
+            - $ref: "#/components/schemas/Artwork"
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Draw:
+      type: object
+      required: [id, cards, remaining, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Card"
+        remaining:
+          type: integer
+          description: Cards left before the deck reshuffles.
+        created_at:
+          type: string
+          format: date-time

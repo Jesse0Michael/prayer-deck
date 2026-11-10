@@ -1,0 +1,5 @@
+bin
+app
+docs
+.git
+**/node_modules

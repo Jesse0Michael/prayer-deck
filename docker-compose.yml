@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: prayerdeck
+      POSTGRES_PASSWORD: prayerdeck
+      POSTGRES_DB: prayerdeck
+    ports:
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prayerdeck"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: prayerdeck
+      MINIO_ROOT_PASSWORD: prayerdeck-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    # MinIO has no in-image health probe; the API exits until it can reach the bucket.
+    restart: on-failure
+    environment:
+      PORT: "8080"
+      LOG_FORMAT: TEXT
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-dev-secret-change-me}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      DEV_LOGIN: ${DEV_LOGIN:-true}
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:9245,http://127.0.0.1:9245
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: prayerdeck
+      POSTGRES_PASSWORD: prayerdeck
+      POSTGRES_DB: prayerdeck
+      POSTGRES_SSLMODE: disable
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_ENDPOINT: http://localhost:9000
+      STORAGE_ACCESS_KEY: prayerdeck
+      STORAGE_SECRET_KEY: prayerdeck-secret
+      STORAGE_BUCKET: prayer-deck
+      STORAGE_CREATE_BUCKET: "true"
+    ports:
+      - "8080:8080"
+
+  web:
+    build: ./app
+    depends_on:
+      - api
+    environment:
+      WAILS_SERVER_PORT: "8080"
+      PRAYER_DECK_API_URL: http://localhost:8080
+    ports:
+      - "3000:8080"
+
+volumes:
+  pgdata:
+  miniodata:
