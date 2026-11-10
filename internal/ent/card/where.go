@@ -61,9 +61,9 @@ func Name(v string) predicate.Card {
 	return predicate.Card(sql.FieldEQ(FieldName, v))
 }
 
-// Details applies equality check predicate on the "details" field. It's identical to DetailsEQ.
-func Details(v string) predicate.Card {
-	return predicate.Card(sql.FieldEQ(FieldDetails, v))
+// Notes applies equality check predicate on the "notes" field. It's identical to NotesEQ.
+func Notes(v string) predicate.Card {
+	return predicate.Card(sql.FieldEQ(FieldNotes, v))
 }
 
 // LastDrawnAt applies equality check predicate on the "last_drawn_at" field. It's identical to LastDrawnAtEQ.
@@ -146,99 +146,79 @@ func NameContainsFold(v string) predicate.Card {
 	return predicate.Card(sql.FieldContainsFold(FieldName, v))
 }
 
-// KindEQ applies the EQ predicate on the "kind" field.
-func KindEQ(v Kind) predicate.Card {
-	return predicate.Card(sql.FieldEQ(FieldKind, v))
+// NotesEQ applies the EQ predicate on the "notes" field.
+func NotesEQ(v string) predicate.Card {
+	return predicate.Card(sql.FieldEQ(FieldNotes, v))
 }
 
-// KindNEQ applies the NEQ predicate on the "kind" field.
-func KindNEQ(v Kind) predicate.Card {
-	return predicate.Card(sql.FieldNEQ(FieldKind, v))
+// NotesNEQ applies the NEQ predicate on the "notes" field.
+func NotesNEQ(v string) predicate.Card {
+	return predicate.Card(sql.FieldNEQ(FieldNotes, v))
 }
 
-// KindIn applies the In predicate on the "kind" field.
-func KindIn(vs ...Kind) predicate.Card {
-	return predicate.Card(sql.FieldIn(FieldKind, vs...))
+// NotesIn applies the In predicate on the "notes" field.
+func NotesIn(vs ...string) predicate.Card {
+	return predicate.Card(sql.FieldIn(FieldNotes, vs...))
 }
 
-// KindNotIn applies the NotIn predicate on the "kind" field.
-func KindNotIn(vs ...Kind) predicate.Card {
-	return predicate.Card(sql.FieldNotIn(FieldKind, vs...))
+// NotesNotIn applies the NotIn predicate on the "notes" field.
+func NotesNotIn(vs ...string) predicate.Card {
+	return predicate.Card(sql.FieldNotIn(FieldNotes, vs...))
 }
 
-// DetailsEQ applies the EQ predicate on the "details" field.
-func DetailsEQ(v string) predicate.Card {
-	return predicate.Card(sql.FieldEQ(FieldDetails, v))
+// NotesGT applies the GT predicate on the "notes" field.
+func NotesGT(v string) predicate.Card {
+	return predicate.Card(sql.FieldGT(FieldNotes, v))
 }
 
-// DetailsNEQ applies the NEQ predicate on the "details" field.
-func DetailsNEQ(v string) predicate.Card {
-	return predicate.Card(sql.FieldNEQ(FieldDetails, v))
+// NotesGTE applies the GTE predicate on the "notes" field.
+func NotesGTE(v string) predicate.Card {
+	return predicate.Card(sql.FieldGTE(FieldNotes, v))
 }
 
-// DetailsIn applies the In predicate on the "details" field.
-func DetailsIn(vs ...string) predicate.Card {
-	return predicate.Card(sql.FieldIn(FieldDetails, vs...))
+// NotesLT applies the LT predicate on the "notes" field.
+func NotesLT(v string) predicate.Card {
+	return predicate.Card(sql.FieldLT(FieldNotes, v))
 }
 
-// DetailsNotIn applies the NotIn predicate on the "details" field.
-func DetailsNotIn(vs ...string) predicate.Card {
-	return predicate.Card(sql.FieldNotIn(FieldDetails, vs...))
+// NotesLTE applies the LTE predicate on the "notes" field.
+func NotesLTE(v string) predicate.Card {
+	return predicate.Card(sql.FieldLTE(FieldNotes, v))
 }
 
-// DetailsGT applies the GT predicate on the "details" field.
-func DetailsGT(v string) predicate.Card {
-	return predicate.Card(sql.FieldGT(FieldDetails, v))
+// NotesContains applies the Contains predicate on the "notes" field.
+func NotesContains(v string) predicate.Card {
+	return predicate.Card(sql.FieldContains(FieldNotes, v))
 }
 
-// DetailsGTE applies the GTE predicate on the "details" field.
-func DetailsGTE(v string) predicate.Card {
-	return predicate.Card(sql.FieldGTE(FieldDetails, v))
+// NotesHasPrefix applies the HasPrefix predicate on the "notes" field.
+func NotesHasPrefix(v string) predicate.Card {
+	return predicate.Card(sql.FieldHasPrefix(FieldNotes, v))
 }
 
-// DetailsLT applies the LT predicate on the "details" field.
-func DetailsLT(v string) predicate.Card {
-	return predicate.Card(sql.FieldLT(FieldDetails, v))
+// NotesHasSuffix applies the HasSuffix predicate on the "notes" field.
+func NotesHasSuffix(v string) predicate.Card {
+	return predicate.Card(sql.FieldHasSuffix(FieldNotes, v))
 }
 
-// DetailsLTE applies the LTE predicate on the "details" field.
-func DetailsLTE(v string) predicate.Card {
-	return predicate.Card(sql.FieldLTE(FieldDetails, v))
+// NotesIsNil applies the IsNil predicate on the "notes" field.
+func NotesIsNil() predicate.Card {
+	return predicate.Card(sql.FieldIsNull(FieldNotes))
 }
 
-// DetailsContains applies the Contains predicate on the "details" field.
-func DetailsContains(v string) predicate.Card {
-	return predicate.Card(sql.FieldContains(FieldDetails, v))
+// NotesNotNil applies the NotNil predicate on the "notes" field.
+func NotesNotNil() predicate.Card {
+	return predicate.Card(sql.FieldNotNull(FieldNotes))
 }
 
-// DetailsHasPrefix applies the HasPrefix predicate on the "details" field.
-func DetailsHasPrefix(v string) predicate.Card {
-	return predicate.Card(sql.FieldHasPrefix(FieldDetails, v))
+// NotesEqualFold applies the EqualFold predicate on the "notes" field.
+func NotesEqualFold(v string) predicate.Card {
+	return predicate.Card(sql.FieldEqualFold(FieldNotes, v))
 }
 
-// DetailsHasSuffix applies the HasSuffix predicate on the "details" field.
-func DetailsHasSuffix(v string) predicate.Card {
-	return predicate.Card(sql.FieldHasSuffix(FieldDetails, v))
-}
-
-// DetailsIsNil applies the IsNil predicate on the "details" field.
-func DetailsIsNil() predicate.Card {
-	return predicate.Card(sql.FieldIsNull(FieldDetails))
-}
-
-// DetailsNotNil applies the NotNil predicate on the "details" field.
-func DetailsNotNil() predicate.Card {
-	return predicate.Card(sql.FieldNotNull(FieldDetails))
-}
-
-// DetailsEqualFold applies the EqualFold predicate on the "details" field.
-func DetailsEqualFold(v string) predicate.Card {
-	return predicate.Card(sql.FieldEqualFold(FieldDetails, v))
-}
-
-// DetailsContainsFold applies the ContainsFold predicate on the "details" field.
-func DetailsContainsFold(v string) predicate.Card {
-	return predicate.Card(sql.FieldContainsFold(FieldDetails, v))
+// NotesContainsFold applies the ContainsFold predicate on the "notes" field.
+func NotesContainsFold(v string) predicate.Card {
+	return predicate.Card(sql.FieldContainsFold(FieldNotes, v))
 }
 
 // LastDrawnAtEQ applies the EQ predicate on the "last_drawn_at" field.

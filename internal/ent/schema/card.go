@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Card represents the people held in prayer: one person, a couple, or a family.
+// Card represents the people held in prayer: a person, a couple, or a family.
 type Card struct {
 	ent.Schema
 }
@@ -22,12 +22,9 @@ func (Card) Fields() []ent.Field {
 			Immutable(),
 		field.String("name").
 			NotEmpty(),
-		field.Enum("kind").
-			Values("person", "couple", "family").
-			Default("person"),
-		// details holds the small personal touches that bring someone to mind:
+		// notes holds the small personal touches that bring someone to mind:
 		// a hobby, a pet, a favorite place.
-		field.Text("details").
+		field.Text("notes").
 			Optional(),
 		field.Time("last_drawn_at").
 			Optional().

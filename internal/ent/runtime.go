@@ -36,11 +36,11 @@ func init() {
 	// card.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	card.NameValidator = cardDescName.Validators[0].(func(string) error)
 	// cardDescCreatedAt is the schema descriptor for created_at field.
-	cardDescCreatedAt := cardFields[5].Descriptor()
+	cardDescCreatedAt := cardFields[4].Descriptor()
 	// card.DefaultCreatedAt holds the default value on creation for the created_at field.
 	card.DefaultCreatedAt = cardDescCreatedAt.Default.(func() time.Time)
 	// cardDescUpdatedAt is the schema descriptor for updated_at field.
-	cardDescUpdatedAt := cardFields[6].Descriptor()
+	cardDescUpdatedAt := cardFields[5].Descriptor()
 	// card.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	card.DefaultUpdatedAt = cardDescUpdatedAt.Default.(func() time.Time)
 	// card.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

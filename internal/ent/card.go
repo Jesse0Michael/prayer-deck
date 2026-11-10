@@ -21,10 +21,8 @@ type Card struct {
 	ID uuid.UUID `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
-	// Kind holds the value of the "kind" field.
-	Kind card.Kind `json:"kind,omitempty"`
-	// Details holds the value of the "details" field.
-	Details string `json:"details,omitempty"`
+	// Notes holds the value of the "notes" field.
+	Notes string `json:"notes,omitempty"`
 	// LastDrawnAt holds the value of the "last_drawn_at" field.
 	LastDrawnAt *time.Time `json:"last_drawn_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -74,7 +72,7 @@ func (*Card) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case card.FieldName, card.FieldKind, card.FieldDetails:
+		case card.FieldName, card.FieldNotes:
 			values[i] = new(sql.NullString)
 		case card.FieldLastDrawnAt, card.FieldCreatedAt, card.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -109,17 +107,11 @@ func (_m *Card) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Name = value.String
 			}
-		case card.FieldKind:
+		case card.FieldNotes:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field kind", values[i])
+				return fmt.Errorf("unexpected type %T for field notes", values[i])
 			} else if value.Valid {
-				_m.Kind = card.Kind(value.String)
-			}
-		case card.FieldDetails:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field details", values[i])
-			} else if value.Valid {
-				_m.Details = value.String
+				_m.Notes = value.String
 			}
 		case card.FieldLastDrawnAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -196,11 +188,8 @@ func (_m *Card) String() string {
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
-	builder.WriteString("kind=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Kind))
-	builder.WriteString(", ")
-	builder.WriteString("details=")
-	builder.WriteString(_m.Details)
+	builder.WriteString("notes=")
+	builder.WriteString(_m.Notes)
 	builder.WriteString(", ")
 	if v := _m.LastDrawnAt; v != nil {
 		builder.WriteString("last_drawn_at=")

@@ -77,7 +77,6 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [remaining, setRemaining] = useState(deck.remaining);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +84,6 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
     setDraw(null);
     setFocusIndex(null);
     setError(null);
-    setRemaining(deck.remaining);
     api
       .currentDraw(deck.id)
       .then(async (current) => {
@@ -108,8 +106,6 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
     return () => {
       cancelled = true;
     };
-    // deck.remaining changes after every draw and must not restart the view.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, deck.id]);
 
   const count = draw?.cards.length ?? DRAW_COUNT;
@@ -140,7 +136,6 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       setDraw(dealt);
       setRevealed(new Set());
       saveRevealed(dealt.id, new Set());
-      setRemaining(dealt.remaining);
       setPhase("dealing");
       onDeckChanged();
       await sleep(DEAL_STAGGER * 1000 * (dealt.cards.length - 1) + 700);
@@ -239,48 +234,31 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
               <>
                 <p>This deck has no cards yet.</p>
                 <button type="button" className="btn btn-primary" onClick={onManage}>
-                  Add people
+                  Add cards
                 </button>
               </>
             ) : phase === "idle" ? (
-              <>
-                <p>When you are ready, shuffle and draw three.</p>
-                <button type="button" className="btn btn-primary" onClick={startDraw}>
-                  Shuffle &amp; draw
-                </button>
-              </>
+              <button type="button" className="btn btn-primary" onClick={startDraw}>
+                Shuffle &amp; draw
+              </button>
             ) : phase === "shuffling" ? (
               <p>Shuffling…</p>
-            ) : phase === "dealt" && !allRevealed ? (
-              <>
-                <p>Tap a card to turn it over.</p>
-                <button type="button" className="btn" onClick={() => draw && reveal(draw.cards.map((c) => c.id))}>
-                  Turn all over
-                </button>
-              </>
-            ) : phase === "dealt" ? (
-              <>
-                <p>Tap someone to spend a moment with them.</p>
-                <button type="button" className="btn" onClick={startDraw}>
-                  Draw again
-                </button>
-              </>
+            ) : phase === "dealt" && allRevealed ? (
+              <button type="button" className="btn" onClick={startDraw}>
+                Draw again
+              </button>
             ) : (
               <p>&nbsp;</p>
             )}
           </motion.div>
         </AnimatePresence>
         {error && error !== "empty" && <p className="error-text">{error}</p>}
-        <p className="deck-meta">
-          {deck.name} · {deck.card_count} {deck.card_count === 1 ? "card" : "cards"}
-          {deck.card_count > 0 && ` · ${remaining} before reshuffle`}
-        </p>
       </div>
 
       {createPortal(
         <AnimatePresence>
           {draw && focusIndex !== null && (
-            <FocusCard cards={draw.cards} index={focusIndex} onIndexChange={setFocusIndex} onClose={() => setFocusIndex(null)} />
+            <FocusCard card={draw.cards[focusIndex]} onClose={() => setFocusIndex(null)} />
           )}
         </AnimatePresence>,
         document.body,

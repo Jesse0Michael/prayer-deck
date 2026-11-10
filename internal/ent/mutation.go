@@ -870,8 +870,7 @@ type CardMutation struct {
 	typ           string
 	id            *uuid.UUID
 	name          *string
-	kind          *card.Kind
-	details       *string
+	notes         *string
 	last_drawn_at *time.Time
 	created_at    *time.Time
 	updated_at    *time.Time
@@ -1026,89 +1025,53 @@ func (m *CardMutation) ResetName() {
 	m.name = nil
 }
 
-// SetKind sets the "kind" field.
-func (m *CardMutation) SetKind(c card.Kind) {
-	m.kind = &c
+// SetNotes sets the "notes" field.
+func (m *CardMutation) SetNotes(s string) {
+	m.notes = &s
 }
 
-// Kind returns the value of the "kind" field in the mutation.
-func (m *CardMutation) Kind() (r card.Kind, exists bool) {
-	v := m.kind
+// Notes returns the value of the "notes" field in the mutation.
+func (m *CardMutation) Notes() (r string, exists bool) {
+	v := m.notes
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldKind returns the old "kind" field's value of the Card entity.
+// OldNotes returns the old "notes" field's value of the Card entity.
 // If the Card object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CardMutation) OldKind(ctx context.Context) (v card.Kind, err error) {
+func (m *CardMutation) OldNotes(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldKind requires an ID field in the mutation")
+		return v, errors.New("OldNotes requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
 	}
-	return oldValue.Kind, nil
+	return oldValue.Notes, nil
 }
 
-// ResetKind resets all changes to the "kind" field.
-func (m *CardMutation) ResetKind() {
-	m.kind = nil
+// ClearNotes clears the value of the "notes" field.
+func (m *CardMutation) ClearNotes() {
+	m.notes = nil
+	m.clearedFields[card.FieldNotes] = struct{}{}
 }
 
-// SetDetails sets the "details" field.
-func (m *CardMutation) SetDetails(s string) {
-	m.details = &s
-}
-
-// Details returns the value of the "details" field in the mutation.
-func (m *CardMutation) Details() (r string, exists bool) {
-	v := m.details
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldDetails returns the old "details" field's value of the Card entity.
-// If the Card object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CardMutation) OldDetails(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldDetails is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldDetails requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldDetails: %w", err)
-	}
-	return oldValue.Details, nil
-}
-
-// ClearDetails clears the value of the "details" field.
-func (m *CardMutation) ClearDetails() {
-	m.details = nil
-	m.clearedFields[card.FieldDetails] = struct{}{}
-}
-
-// DetailsCleared returns if the "details" field was cleared in this mutation.
-func (m *CardMutation) DetailsCleared() bool {
-	_, ok := m.clearedFields[card.FieldDetails]
+// NotesCleared returns if the "notes" field was cleared in this mutation.
+func (m *CardMutation) NotesCleared() bool {
+	_, ok := m.clearedFields[card.FieldNotes]
 	return ok
 }
 
-// ResetDetails resets all changes to the "details" field.
-func (m *CardMutation) ResetDetails() {
-	m.details = nil
-	delete(m.clearedFields, card.FieldDetails)
+// ResetNotes resets all changes to the "notes" field.
+func (m *CardMutation) ResetNotes() {
+	m.notes = nil
+	delete(m.clearedFields, card.FieldNotes)
 }
 
 // SetLastDrawnAt sets the "last_drawn_at" field.
@@ -1359,15 +1322,12 @@ func (m *CardMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CardMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 5)
 	if m.name != nil {
 		fields = append(fields, card.FieldName)
 	}
-	if m.kind != nil {
-		fields = append(fields, card.FieldKind)
-	}
-	if m.details != nil {
-		fields = append(fields, card.FieldDetails)
+	if m.notes != nil {
+		fields = append(fields, card.FieldNotes)
 	}
 	if m.last_drawn_at != nil {
 		fields = append(fields, card.FieldLastDrawnAt)
@@ -1388,10 +1348,8 @@ func (m *CardMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case card.FieldName:
 		return m.Name()
-	case card.FieldKind:
-		return m.Kind()
-	case card.FieldDetails:
-		return m.Details()
+	case card.FieldNotes:
+		return m.Notes()
 	case card.FieldLastDrawnAt:
 		return m.LastDrawnAt()
 	case card.FieldCreatedAt:
@@ -1409,10 +1367,8 @@ func (m *CardMutation) OldField(ctx context.Context, name string) (ent.Value, er
 	switch name {
 	case card.FieldName:
 		return m.OldName(ctx)
-	case card.FieldKind:
-		return m.OldKind(ctx)
-	case card.FieldDetails:
-		return m.OldDetails(ctx)
+	case card.FieldNotes:
+		return m.OldNotes(ctx)
 	case card.FieldLastDrawnAt:
 		return m.OldLastDrawnAt(ctx)
 	case card.FieldCreatedAt:
@@ -1435,19 +1391,12 @@ func (m *CardMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetName(v)
 		return nil
-	case card.FieldKind:
-		v, ok := value.(card.Kind)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetKind(v)
-		return nil
-	case card.FieldDetails:
+	case card.FieldNotes:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetDetails(v)
+		m.SetNotes(v)
 		return nil
 	case card.FieldLastDrawnAt:
 		v, ok := value.(time.Time)
@@ -1500,8 +1449,8 @@ func (m *CardMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *CardMutation) ClearedFields() []string {
 	var fields []string
-	if m.FieldCleared(card.FieldDetails) {
-		fields = append(fields, card.FieldDetails)
+	if m.FieldCleared(card.FieldNotes) {
+		fields = append(fields, card.FieldNotes)
 	}
 	if m.FieldCleared(card.FieldLastDrawnAt) {
 		fields = append(fields, card.FieldLastDrawnAt)
@@ -1520,8 +1469,8 @@ func (m *CardMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *CardMutation) ClearField(name string) error {
 	switch name {
-	case card.FieldDetails:
-		m.ClearDetails()
+	case card.FieldNotes:
+		m.ClearNotes()
 		return nil
 	case card.FieldLastDrawnAt:
 		m.ClearLastDrawnAt()
@@ -1537,11 +1486,8 @@ func (m *CardMutation) ResetField(name string) error {
 	case card.FieldName:
 		m.ResetName()
 		return nil
-	case card.FieldKind:
-		m.ResetKind()
-		return nil
-	case card.FieldDetails:
-		m.ResetDetails()
+	case card.FieldNotes:
+		m.ResetNotes()
 		return nil
 	case card.FieldLastDrawnAt:
 		m.ResetLastDrawnAt()

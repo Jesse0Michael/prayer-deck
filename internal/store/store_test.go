@@ -56,8 +56,8 @@ func newTestStore(t *testing.T) (*entStore, *ent.Client) {
 	client.Deck.Create().SetID(deck2).SetName("Friends").SetOwnerID(user1).SetShuffledAt(t0).SetCreatedAt(t0.Add(time.Second)).ExecX(ctx)
 	client.Deck.Create().SetID(deck3).SetName("Other").SetOwnerID(user2).SetShuffledAt(t0).ExecX(ctx)
 	client.Card.Create().SetID(card1).SetName("Anna").SetDeckID(deck1).ExecX(ctx)
-	client.Card.Create().SetID(card2).SetName("Ben").SetKind(card.KindCouple).SetDeckID(deck1).ExecX(ctx)
-	client.Card.Create().SetID(card3).SetName("Cara").SetKind(card.KindFamily).SetDetails("loves gardening").SetDeckID(deck1).ExecX(ctx)
+	client.Card.Create().SetID(card2).SetName("Ben").SetDeckID(deck1).ExecX(ctx)
+	client.Card.Create().SetID(card3).SetName("Cara").SetNotes("loves gardening").SetDeckID(deck1).ExecX(ctx)
 	client.Card.Create().SetID(card4).SetName("Dan").SetDeckID(deck3).ExecX(ctx)
 	client.Asset.Create().SetID(asset1).SetCardID(card1).SetRendition(asset.RenditionDisplay).SetKey("cards/c1/display.jpg").
 		SetContentType("image/jpeg").SetSize(100).SetWidth(10).SetHeight(15).ExecX(ctx)
@@ -72,13 +72,13 @@ func testAsset() *ent.Asset {
 func testCard(id uuid.UUID) *ent.Card {
 	switch id {
 	case card1:
-		return &ent.Card{ID: card1, Name: "Anna", Kind: card.KindPerson, CreatedAt: t0, UpdatedAt: t0, Edges: ent.CardEdges{Assets: []*ent.Asset{testAsset()}}}
+		return &ent.Card{ID: card1, Name: "Anna", CreatedAt: t0, UpdatedAt: t0, Edges: ent.CardEdges{Assets: []*ent.Asset{testAsset()}}}
 	case card2:
-		return &ent.Card{ID: card2, Name: "Ben", Kind: card.KindCouple, CreatedAt: t0, UpdatedAt: t0}
+		return &ent.Card{ID: card2, Name: "Ben", CreatedAt: t0, UpdatedAt: t0}
 	case card3:
-		return &ent.Card{ID: card3, Name: "Cara", Kind: card.KindFamily, Details: "loves gardening", CreatedAt: t0, UpdatedAt: t0}
+		return &ent.Card{ID: card3, Name: "Cara", Notes: "loves gardening", CreatedAt: t0, UpdatedAt: t0}
 	default:
-		return &ent.Card{ID: card4, Name: "Dan", Kind: card.KindPerson, CreatedAt: t0, UpdatedAt: t0}
+		return &ent.Card{ID: card4, Name: "Dan", CreatedAt: t0, UpdatedAt: t0}
 	}
 }
 
@@ -259,8 +259,8 @@ func TestStore_CreateCard(t *testing.T) {
 			name:     "creates a card",
 			userID:   user1,
 			deckID:   deck2,
-			input:    CardInput{Name: ptr("Eve"), Kind: ptr(card.KindFamily), Details: ptr("two dogs")},
-			expected: &ent.Card{ID: uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72"), Name: "Eve", Kind: card.KindFamily, Details: "two dogs", CreatedAt: t0, UpdatedAt: t0},
+			input:    CardInput{Name: ptr("Eve"), Notes: ptr("two dogs")},
+			expected: &ent.Card{ID: uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72"), Name: "Eve", Notes: "two dogs", CreatedAt: t0, UpdatedAt: t0},
 		},
 		{
 			name:    "empty name is invalid",
@@ -306,10 +306,10 @@ func TestStore_UpdateCard(t *testing.T) {
 			name:   "changes only the given fields",
 			userID: user1,
 			cardID: card1,
-			input:  CardInput{Details: ptr("plays cello")},
+			input:  CardInput{Notes: ptr("plays cello")},
 			expected: func() *ent.Card {
 				c := testCard(card1)
-				c.Details = "plays cello"
+				c.Notes = "plays cello"
 				return c
 			}(),
 		},
@@ -398,7 +398,7 @@ func TestStore_ReplaceArtwork(t *testing.T) {
 			name:   "replaces existing artwork",
 			userID: user1,
 			cardID: card1,
-			expected: &ent.Card{ID: card1, Name: "Anna", Kind: card.KindPerson, CreatedAt: t0, UpdatedAt: t0, Edges: ent.CardEdges{Assets: []*ent.Asset{
+			expected: &ent.Card{ID: card1, Name: "Anna", CreatedAt: t0, UpdatedAt: t0, Edges: ent.CardEdges{Assets: []*ent.Asset{
 				{ID: newAsset.ID, Rendition: asset.RenditionThumbnail, Key: "cards/c1/thumbnail.jpg", ContentType: "image/jpeg", Size: 50, Width: 4, Height: 6, CreatedAt: t0},
 			}}},
 			expectedReplaced: []string{"cards/c1/display.jpg"},

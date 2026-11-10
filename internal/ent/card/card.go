@@ -3,7 +3,6 @@
 package card
 
 import (
-	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -18,10 +17,8 @@ const (
 	FieldID = "id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
-	// FieldKind holds the string denoting the kind field in the database.
-	FieldKind = "kind"
-	// FieldDetails holds the string denoting the details field in the database.
-	FieldDetails = "details"
+	// FieldNotes holds the string denoting the notes field in the database.
+	FieldNotes = "notes"
 	// FieldLastDrawnAt holds the string denoting the last_drawn_at field in the database.
 	FieldLastDrawnAt = "last_drawn_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -54,8 +51,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldName,
-	FieldKind,
-	FieldDetails,
+	FieldNotes,
 	FieldLastDrawnAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -95,33 +91,6 @@ var (
 	DefaultID func() uuid.UUID
 )
 
-// Kind defines the type for the "kind" enum field.
-type Kind string
-
-// KindPerson is the default value of the Kind enum.
-const DefaultKind = KindPerson
-
-// Kind values.
-const (
-	KindPerson Kind = "person"
-	KindCouple Kind = "couple"
-	KindFamily Kind = "family"
-)
-
-func (k Kind) String() string {
-	return string(k)
-}
-
-// KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
-func KindValidator(k Kind) error {
-	switch k {
-	case KindPerson, KindCouple, KindFamily:
-		return nil
-	default:
-		return fmt.Errorf("card: invalid enum value for kind field: %q", k)
-	}
-}
-
 // OrderOption defines the ordering options for the Card queries.
 type OrderOption func(*sql.Selector)
 
@@ -135,14 +104,9 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
 }
 
-// ByKind orders the results by the kind field.
-func ByKind(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldKind, opts...).ToFunc()
-}
-
-// ByDetails orders the results by the details field.
-func ByDetails(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDetails, opts...).ToFunc()
+// ByNotes orders the results by the notes field.
+func ByNotes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNotes, opts...).ToFunc()
 }
 
 // ByLastDrawnAt orders the results by the last_drawn_at field.

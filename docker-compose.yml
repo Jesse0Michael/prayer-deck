@@ -42,7 +42,7 @@ services:
       AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-dev-secret-change-me}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       DEV_LOGIN: ${DEV_LOGIN:-true}
-      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:9245,http://127.0.0.1:9245
+      ALLOWED_ORIGINS: http://localhost:3000,http://${PUBLIC_HOST:-localhost}:3000,http://localhost:9245,http://127.0.0.1:9245
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_USER: prayerdeck
@@ -50,7 +50,7 @@ services:
       POSTGRES_DB: prayerdeck
       POSTGRES_SSLMODE: disable
       STORAGE_ENDPOINT: http://minio:9000
-      STORAGE_PUBLIC_ENDPOINT: http://localhost:9000
+      STORAGE_PUBLIC_ENDPOINT: http://${PUBLIC_HOST:-localhost}:9000
       STORAGE_ACCESS_KEY: prayerdeck
       STORAGE_SECRET_KEY: prayerdeck-secret
       STORAGE_BUCKET: prayer-deck
@@ -64,7 +64,7 @@ services:
       - api
     environment:
       WAILS_SERVER_PORT: "8080"
-      PRAYER_DECK_API_URL: http://localhost:8080
+      PRAYER_DECK_API_URL: http://${PUBLIC_HOST:-localhost}:8080
     ports:
       - "3000:8080"
 

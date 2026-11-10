@@ -465,17 +465,12 @@ components:
         updated_at:
           type: string
           format: date-time
-    CardKind:
-      type: string
-      enum: [person, couple, family]
     CardInput:
       type: object
       properties:
         name:
           type: string
-        kind:
-          $ref: "#/components/schemas/CardKind"
-        details:
+        notes:
           type: string
           description: Personal touches such as a hobby, pet, or favorite place.
     Artwork:
@@ -495,16 +490,14 @@ components:
           type: integer
     Card:
       type: object
-      required: [id, name, kind, details, artwork, created_at, updated_at]
+      required: [id, name, notes, artwork, created_at, updated_at]
       properties:
         id:
           type: string
           format: uuid
         name:
           type: string
-        kind:
-          $ref: "#/components/schemas/CardKind"
-        details:
+        notes:
           type: string
         artwork:
           allOf:

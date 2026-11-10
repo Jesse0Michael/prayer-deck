@@ -57,9 +57,8 @@ type Deck struct {
 
 // CardInput carries card fields to create or change. Nil fields are left unchanged on update.
 type CardInput struct {
-	Name    *string
-	Kind    *card.Kind
-	Details *string
+	Name  *string
+	Notes *string
 }
 
 // AssetInput describes one stored artwork rendition.
@@ -334,11 +333,8 @@ func (s *entStore) CreateCard(ctx context.Context, userID, deckID uuid.UUID, in 
 	if in.Name != nil {
 		create.SetName(*in.Name)
 	}
-	if in.Kind != nil {
-		create.SetKind(*in.Kind)
-	}
-	if in.Details != nil {
-		create.SetDetails(*in.Details)
+	if in.Notes != nil {
+		create.SetNotes(*in.Notes)
 	}
 	c, err := create.Save(ctx)
 	if err != nil {
@@ -352,11 +348,8 @@ func (s *entStore) UpdateCard(ctx context.Context, userID, cardID uuid.UUID, in 
 	if in.Name != nil {
 		update.SetName(*in.Name)
 	}
-	if in.Kind != nil {
-		update.SetKind(*in.Kind)
-	}
-	if in.Details != nil {
-		update.SetDetails(*in.Details)
+	if in.Notes != nil {
+		update.SetNotes(*in.Notes)
 	}
 	n, err := update.Save(ctx)
 	if err != nil {

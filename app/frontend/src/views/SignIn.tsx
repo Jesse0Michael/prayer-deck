@@ -85,7 +85,7 @@ export function SignIn({ api }: { api: ApiClient }) {
       </div>
       <motion.div className="signin-panel" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
         <h1 className="hand-title">Prayer Deck</h1>
-        <p className="signin-tagline">Shuffle, draw three, and spend a few quiet minutes with the people you love.</p>
+        <p className="signin-tagline">Spend a few quiet minutes with the people you love.</p>
         {google && <div ref={googleButton} className="google-button" />}
         {dev && (
           <form className="dev-signin" onSubmit={devSignIn}>

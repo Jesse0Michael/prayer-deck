@@ -9,8 +9,6 @@ import { SignIn } from "./views/SignIn";
 
 type View = "draw" | "manage";
 
-const SELECTED_DECK_KEY = "prayer-deck.deck";
-
 export function App() {
   const [api, setApi] = useState<ApiClient | null>(null);
   const [signedIn, setSignedIn] = useState(false);
@@ -35,36 +33,23 @@ export function App() {
 function Home({ api }: { api: ApiClient }) {
   const [user, setUser] = useState<User | null>(null);
   const [decks, setDecks] = useState<Deck[]>([]);
-  const [deckID, setDeckID] = useState<string | null>(() => localStorage.getItem(SELECTED_DECK_KEY));
   const [view, setView] = useState<View>("draw");
   const [error, setError] = useState<string | null>(null);
 
-  const refreshDecks = useCallback(
-    (selectDeckID?: string) => {
-      api
-        .decks()
-        .then((list) => {
-          setDecks(list);
-          setDeckID((current) => {
-            const wanted = selectDeckID ?? current;
-            return list.some((d) => d.id === wanted) ? wanted : (list[0]?.id ?? null);
-          });
-        })
-        .catch((err: Error) => setError(err.message));
-    },
-    [api],
-  );
+  const refreshDecks = useCallback(() => {
+    api
+      .decks()
+      .then(setDecks)
+      .catch((err: Error) => setError(err.message));
+  }, [api]);
 
   useEffect(() => {
     api.me().then(setUser).catch(() => undefined);
     refreshDecks();
   }, [api, refreshDecks]);
 
-  useEffect(() => {
-    if (deckID) localStorage.setItem(SELECTED_DECK_KEY, deckID);
-  }, [deckID]);
-
-  const deck = decks.find((d) => d.id === deckID);
+  // The UI presents a single deck; the first one holds every card.
+  const deck = decks[0];
 
   return (
     <div className="app">
@@ -79,15 +64,6 @@ function Home({ api }: { api: ApiClient }) {
           ))}
         </nav>
         <span className="spacer" />
-        {decks.length > 1 && (
-          <select className="deck-select" value={deckID ?? ""} onChange={(e) => setDeckID(e.target.value)} aria-label="Deck">
-            {decks.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        )}
         <button type="button" className="btn btn-quiet account" onClick={() => api.signOut()} title={user?.email}>
           Sign out
         </button>
@@ -109,7 +85,7 @@ function Home({ api }: { api: ApiClient }) {
               {view === "draw" ? (
                 <DrawView api={api} deck={deck} onDeckChanged={refreshDecks} onManage={() => setView("manage")} />
               ) : (
-                <ManageView api={api} deck={deck} decks={decks} onDecksChanged={refreshDecks} />
+                <ManageView api={api} deck={deck} onDecksChanged={refreshDecks} />
               )}
             </motion.div>
           )}

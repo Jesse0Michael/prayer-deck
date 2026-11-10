@@ -13,7 +13,6 @@ import (
 	httperrors "github.com/jesse0michael/pkg/http/errors"
 	"github.com/jesse0michael/pkg/http/server"
 	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
-	"github.com/jesse0michael/prayer-deck/internal/ent/card"
 	"github.com/jesse0michael/prayer-deck/internal/media"
 	"github.com/jesse0michael/prayer-deck/internal/store"
 )
@@ -22,9 +21,8 @@ import (
 const maxArtworkBytes = 25 << 20
 
 type cardRequest struct {
-	Name    *string `json:"name"`
-	Kind    *string `json:"kind"`
-	Details *string `json:"details"`
+	Name  *string `json:"name"`
+	Notes *string `json:"notes"`
 }
 
 // input validates the request. requireName is set when creating a card.
@@ -39,16 +37,9 @@ func (req cardRequest) input(requireName bool) (store.CardInput, error) {
 	} else if requireName {
 		return in, httperrors.NewError(http.StatusBadRequest, "name is required", "")
 	}
-	if req.Kind != nil {
-		kind := card.Kind(*req.Kind)
-		if err := card.KindValidator(kind); err != nil {
-			return in, httperrors.NewError(http.StatusBadRequest, "kind must be person, couple, or family", "")
-		}
-		in.Kind = &kind
-	}
-	if req.Details != nil {
-		details := strings.TrimSpace(*req.Details)
-		in.Details = &details
+	if req.Notes != nil {
+		notes := strings.TrimSpace(*req.Notes)
+		in.Notes = &notes
 	}
 	return in, nil
 }

@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { ApiClient } from "../api/client";
-import type { Card, CardKind } from "../api/types";
+import type { Card } from "../api/types";
 import { CardFace } from "../components/CardFace";
 
 interface CardEditorProps {
@@ -17,16 +17,9 @@ interface CardEditorProps {
 // Inline because the CSS minifier keeps only the -webkit- form of backdrop-filter.
 const blur = { backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" };
 
-const kinds: { value: CardKind; label: string }[] = [
-  { value: "person", label: "Person" },
-  { value: "couple", label: "Couple" },
-  { value: "family", label: "Family" },
-];
-
 export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: CardEditorProps) {
   const [name, setName] = useState(card?.name ?? "");
-  const [kind, setKind] = useState<CardKind>(card?.kind ?? "person");
-  const [details, setDetails] = useState(card?.details ?? "");
+  const [notes, setNotes] = useState(card?.notes ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -67,7 +60,7 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
     setSaving(true);
     setError(null);
     try {
-      const input = { name: name.trim(), kind, details: details.trim() };
+      const input = { name: name.trim(), notes: notes.trim() };
       let saved = card ? await api.updateCard(card.id, input) : await api.createCard(deckID, input);
       if (file) saved = await api.uploadArtwork(saved.id, file);
       onSaved(saved);
@@ -93,15 +86,14 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
     ? {
         id: "preview",
         name: name || "New card",
-        kind,
-        details,
+        notes,
         artwork: { display_url: preview, thumbnail_url: preview, original_url: preview, width: 0, height: 0 },
         created_at: "",
         updated_at: "",
       }
     : card
-      ? { ...card, name: name || card.name, kind }
-      : { id: "new", name: name || "New card", kind, details, artwork: null, created_at: "", updated_at: "" };
+      ? { ...card, name: name || card.name }
+      : { id: "new", name: name || "New card", notes, artwork: null, created_at: "", updated_at: "" };
 
   return (
     <motion.div className="sheet-backdrop" style={blur} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !saving && onClose()}>
@@ -145,28 +137,16 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
           <div className="editor-fields">
             <label className="field">
               <span>Name</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rhett, or The Garcias" autoFocus={!card} maxLength={80} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rhett, or The Seins" autoFocus={!card} maxLength={80} />
             </label>
 
-            <fieldset className="field">
-              <legend>This card is for</legend>
-              <div className="segmented">
-                {kinds.map((k) => (
-                  <label key={k.value} className={kind === k.value ? "selected" : undefined}>
-                    <input type="radio" name="kind" value={k.value} checked={kind === k.value} onChange={() => setKind(k.value)} />
-                    {k.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
             <label className="field">
-              <span>Little details</span>
+              <span>Notes</span>
               <textarea
-                value={details}
-                onChange={(e) => setDetails(e.target.value)}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
                 rows={4}
-                placeholder="A hobby, a pet, a favorite place — whatever brings them to mind."
+                placeholder="How can you pray for them? What can you thank God for in their lives or the work they do?"
                 maxLength={1000}
               />
             </label>

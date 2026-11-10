@@ -763,13 +763,10 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        /** @enum {string} */
-        CardKind: "person" | "couple" | "family";
         CardInput: {
             name?: string;
-            kind?: components["schemas"]["CardKind"];
             /** @description Personal touches such as a hobby, pet, or favorite place. */
-            details?: string;
+            notes?: string;
         };
         /** @description Time-limited URLs to each rendition. Width and height are the display rendition's. */
         Artwork: {
@@ -783,8 +780,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
-            kind: components["schemas"]["CardKind"];
-            details: string;
+            notes: string;
             artwork: components["schemas"]["Artwork"] | null;
             /** Format: date-time */
             created_at: string;

@@ -52,8 +52,7 @@ type artworkView struct {
 type cardView struct {
 	ID        uuid.UUID    `json:"id"`
 	Name      string       `json:"name"`
-	Kind      string       `json:"kind"`
-	Details   string       `json:"details"`
+	Notes     string       `json:"notes"`
 	Artwork   *artworkView `json:"artwork"`
 	CreatedAt time.Time    `json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`
@@ -63,8 +62,7 @@ func (s *Server) toCardView(ctx context.Context, c *ent.Card) (cardView, error) 
 	view := cardView{
 		ID:        c.ID,
 		Name:      c.Name,
-		Kind:      c.Kind.String(),
-		Details:   c.Details,
+		Notes:     c.Notes,
 		CreatedAt: c.CreatedAt,
 		UpdatedAt: c.UpdatedAt,
 	}

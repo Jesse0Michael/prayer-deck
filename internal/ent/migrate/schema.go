@@ -38,8 +38,7 @@ var (
 	CardsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "name", Type: field.TypeString},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"person", "couple", "family"}, Default: "person"},
-		{Name: "details", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "notes", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "last_drawn_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -53,7 +52,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "cards_decks_cards",
-				Columns:    []*schema.Column{CardsColumns[7]},
+				Columns:    []*schema.Column{CardsColumns[6]},
 				RefColumns: []*schema.Column{DecksColumns[0]},
 				OnDelete:   schema.NoAction,
 			},

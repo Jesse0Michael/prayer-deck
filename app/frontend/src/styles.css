@@ -194,14 +194,6 @@ select {
   background: var(--ink);
 }
 
-.deck-select {
-  border: 1.5px solid var(--ink-faint);
-  border-radius: 999px;
-  background: var(--paper);
-  padding: 0.4rem 0.9rem;
-  max-width: 11rem;
-}
-
 .app-main {
   position: relative;
   flex: 1;
@@ -303,12 +295,6 @@ select {
 
 .card-face-blank .hand-name {
   font-size: clamp(1rem, 20cqi, 3.2rem);
-}
-
-.hand-kind {
-  font-family: var(--font-hand);
-  font-size: clamp(0.7rem, 9cqi, 1.4rem);
-  color: var(--ink-soft);
 }
 
 .card-back svg {
@@ -443,13 +429,6 @@ select {
   color: var(--ink-soft);
 }
 
-.deck-meta {
-  margin: 0.75rem 0 0;
-  font-size: 0.82rem;
-  color: var(--ink-soft);
-  opacity: 0.8;
-}
-
 /* Focus */
 
 .focus-backdrop {
@@ -489,41 +468,16 @@ select {
   font-size: 3rem;
 }
 
-.focus-details {
+.focus-notes-text {
   margin: 0;
   font-size: 1.05rem;
   line-height: 1.55;
   white-space: pre-line;
 }
 
-.focus-prompt {
-  margin: 0;
-  font-style: italic;
-  opacity: 0.8;
-}
-
-.focus-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .focus-notes .btn {
   color: var(--paper);
   border-color: rgba(251, 246, 236, 0.7);
-}
-
-.focus-notes .btn-quiet {
-  border-color: transparent;
-}
-
-.focus-notes .btn-quiet:hover:not(:disabled) {
-  background: rgba(251, 246, 236, 0.12);
-}
-
-.focus-count {
-  font-size: 0.9rem;
-  opacity: 0.75;
 }
 
 /* Manage */
@@ -534,34 +488,6 @@ select {
   padding: 0.5rem 1.25rem 3rem;
 }
 
-.deck-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  max-width: 1100px;
-  margin: 0 auto 1rem;
-}
-
-.deck-toolbar h2 {
-  margin: 0;
-  font-family: var(--font-hand);
-  font-size: 2.2rem;
-}
-
-.deck-toolbar-count {
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-}
-
-.inline-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.inline-form input,
 .field input,
 .field textarea,
 .dev-signin input {
@@ -573,7 +499,6 @@ select {
   transition: border-color 160ms ease;
 }
 
-.inline-form input:focus,
 .field input:focus,
 .field textarea:focus,
 .dev-signin input:focus {
@@ -602,23 +527,6 @@ select {
   background: var(--paper);
   box-shadow: var(--shadow-card);
   cursor: pointer;
-}
-
-.grid-card-name {
-  position: absolute;
-  inset: auto 0 0;
-  padding: 1.5rem 0.6rem 0.5rem;
-  font-size: 0.85rem;
-  text-align: left;
-  color: var(--paper);
-  background: linear-gradient(rgba(46, 42, 37, 0), rgba(46, 42, 37, 0.7));
-  opacity: 0;
-  transition: opacity 180ms ease;
-}
-
-.grid-card:hover .grid-card-name,
-.grid-card:focus-visible .grid-card-name {
-  opacity: 1;
 }
 
 .grid-add {
@@ -755,35 +663,6 @@ select {
   line-height: 1.5;
 }
 
-.segmented {
-  display: inline-flex;
-  align-self: flex-start;
-  padding: 3px;
-  border-radius: 999px;
-  background: rgba(46, 42, 37, 0.07);
-}
-
-.segmented label {
-  padding: 0.35rem 1rem;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 0.92rem;
-  transition:
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.segmented label.selected {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.segmented input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
 .sheet-actions {
   display: flex;
   flex-wrap: wrap;
@@ -879,10 +758,6 @@ select {
     display: none;
   }
 
-  .deck-select {
-    max-width: 8rem;
-  }
-
   .focus-layout {
     flex-direction: column;
     gap: 1.25rem;
@@ -900,11 +775,6 @@ select {
   .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
     gap: 0.9rem;
-  }
-
-  .grid-card-name {
-    opacity: 1;
-    font-size: 0.75rem;
   }
 
   .sheet-backdrop {

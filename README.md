@@ -34,7 +34,7 @@ It exists to help you remember people, not to measure prayer.
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Account**  | You. You sign in with Google. More sign-in methods can be added later, and each one attaches to the same account and collection.                             |
 | **Deck**     | A named collection of cards. Every account starts with one.                                                                                               |
-| **Card**     | A person, couple, or family, with a display name, personal details, and artwork.                                                                          |
+| **Card**     | A person, couple, or family, with a display name, notes, and artwork.                                                                          |
 | **Artwork**  | The illustration on a card's face. Each upload is kept in its original form and also prepared in lighter sizes for the card face and for lists.           |
 | **Pass**     | One trip through a deck. Cards drawn in the current pass wait until the deck reshuffles.                                                                  |
 | **Draw**     | The hand most recently dealt from a deck. It lasts until the next draw.                                                                                   |

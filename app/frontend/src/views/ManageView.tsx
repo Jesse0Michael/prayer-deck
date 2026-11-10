@@ -9,13 +9,12 @@ import { CardEditor } from "./CardEditor";
 interface ManageViewProps {
   api: ApiClient;
   deck: Deck;
-  decks: Deck[];
-  onDecksChanged: (selectDeckID?: string) => void;
+  onDecksChanged: () => void;
 }
 
 type Editing = { card?: Card } | null;
 
-export function ManageView({ api, deck, decks, onDecksChanged }: ManageViewProps) {
+export function ManageView({ api, deck, onDecksChanged }: ManageViewProps) {
   const [cards, setCards] = useState<Card[] | null>(null);
   const [editing, setEditing] = useState<Editing>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +47,6 @@ export function ManageView({ api, deck, decks, onDecksChanged }: ManageViewProps
 
   return (
     <div className="manage-view">
-      <DeckToolbar api={api} deck={deck} decks={decks} onDecksChanged={onDecksChanged} />
-
       {error && <p className="error-text">{error}</p>}
 
       <motion.ul className="card-grid" layout>
@@ -72,12 +69,12 @@ export function ManageView({ api, deck, decks, onDecksChanged }: ManageViewProps
               <motion.button
                 type="button"
                 className="grid-card"
+                aria-label={card.name}
                 onClick={() => setEditing({ card })}
                 whileHover={{ y: -6, rotate: -0.6 }}
                 whileTap={{ scale: 0.97 }}
               >
                 <CardFace card={card} thumbnail />
-                <span className="grid-card-name">{card.name}</span>
               </motion.button>
             </motion.li>
           ))}
@@ -103,100 +100,6 @@ export function ManageView({ api, deck, decks, onDecksChanged }: ManageViewProps
         </AnimatePresence>,
         document.body,
       )}
-    </div>
-  );
-}
-
-function DeckToolbar({ api, deck, decks, onDecksChanged }: ManageViewProps) {
-  const [mode, setMode] = useState<"view" | "rename" | "new" | "delete">("view");
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const run = async (action: () => Promise<string | undefined>) => {
-    setError(null);
-    try {
-      const selectID = await action();
-      setMode("view");
-      onDecksChanged(selectID);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    }
-  };
-
-  return (
-    <div className="deck-toolbar">
-      {mode === "view" && (
-        <>
-          <h2>{deck.name}</h2>
-          <span className="deck-toolbar-count">
-            {deck.card_count} {deck.card_count === 1 ? "card" : "cards"}
-          </span>
-          <span className="spacer" />
-          <button
-            type="button"
-            className="btn btn-quiet"
-            onClick={() => {
-              setName(deck.name);
-              setMode("rename");
-            }}
-          >
-            Rename
-          </button>
-          <button
-            type="button"
-            className="btn btn-quiet"
-            onClick={() => {
-              setName("");
-              setMode("new");
-            }}
-          >
-            New deck
-          </button>
-          {decks.length > 1 && (
-            <button type="button" className="btn btn-quiet btn-danger-text" onClick={() => setMode("delete")}>
-              Delete deck
-            </button>
-          )}
-        </>
-      )}
-      {(mode === "rename" || mode === "new") && (
-        <form
-          className="inline-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!name.trim()) return;
-            run(async () =>
-              mode === "rename" ? (await api.renameDeck(deck.id, name.trim()), undefined) : (await api.createDeck(name.trim())).id,
-            );
-          }}
-        >
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Deck name" autoFocus maxLength={60} />
-          <button type="submit" className="btn btn-primary">
-            {mode === "rename" ? "Rename" : "Create"}
-          </button>
-          <button type="button" className="btn btn-quiet" onClick={() => setMode("view")}>
-            Cancel
-          </button>
-        </form>
-      )}
-      {mode === "delete" && (
-        <div className="inline-form">
-          <span>
-            Delete <strong>{deck.name}</strong> and its {deck.card_count} cards?
-          </span>
-          <button
-            type="button"
-            className="btn btn-danger"
-            onClick={() => run(async () => (await api.deleteDeck(deck.id), decks.find((d) => d.id !== deck.id)?.id))}
-          >
-            Delete
-          </button>
-          <button type="button" className="btn btn-quiet" onClick={() => setMode("view")}>
-            Keep
-          </button>
-        </div>
-      )}
-      {error && <p className="error-text">{error}</p>}
     </div>
   );
 }

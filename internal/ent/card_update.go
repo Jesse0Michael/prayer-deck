@@ -45,37 +45,23 @@ func (_u *CardUpdate) SetNillableName(v *string) *CardUpdate {
 	return _u
 }
 
-// SetKind sets the "kind" field.
-func (_u *CardUpdate) SetKind(v card.Kind) *CardUpdate {
-	_u.mutation.SetKind(v)
+// SetNotes sets the "notes" field.
+func (_u *CardUpdate) SetNotes(v string) *CardUpdate {
+	_u.mutation.SetNotes(v)
 	return _u
 }
 
-// SetNillableKind sets the "kind" field if the given value is not nil.
-func (_u *CardUpdate) SetNillableKind(v *card.Kind) *CardUpdate {
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (_u *CardUpdate) SetNillableNotes(v *string) *CardUpdate {
 	if v != nil {
-		_u.SetKind(*v)
+		_u.SetNotes(*v)
 	}
 	return _u
 }
 
-// SetDetails sets the "details" field.
-func (_u *CardUpdate) SetDetails(v string) *CardUpdate {
-	_u.mutation.SetDetails(v)
-	return _u
-}
-
-// SetNillableDetails sets the "details" field if the given value is not nil.
-func (_u *CardUpdate) SetNillableDetails(v *string) *CardUpdate {
-	if v != nil {
-		_u.SetDetails(*v)
-	}
-	return _u
-}
-
-// ClearDetails clears the value of the "details" field.
-func (_u *CardUpdate) ClearDetails() *CardUpdate {
-	_u.mutation.ClearDetails()
+// ClearNotes clears the value of the "notes" field.
+func (_u *CardUpdate) ClearNotes() *CardUpdate {
+	_u.mutation.ClearNotes()
 	return _u
 }
 
@@ -206,11 +192,6 @@ func (_u *CardUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Card.name": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Kind(); ok {
-		if err := card.KindValidator(v); err != nil {
-			return &ValidationError{Name: "kind", err: fmt.Errorf(`ent: validator failed for field "Card.kind": %w`, err)}
-		}
-	}
 	if _u.mutation.DeckCleared() && len(_u.mutation.DeckIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Card.deck"`)
 	}
@@ -232,14 +213,11 @@ func (_u *CardUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(card.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Kind(); ok {
-		_spec.SetField(card.FieldKind, field.TypeEnum, value)
+	if value, ok := _u.mutation.Notes(); ok {
+		_spec.SetField(card.FieldNotes, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Details(); ok {
-		_spec.SetField(card.FieldDetails, field.TypeString, value)
-	}
-	if _u.mutation.DetailsCleared() {
-		_spec.ClearField(card.FieldDetails, field.TypeString)
+	if _u.mutation.NotesCleared() {
+		_spec.ClearField(card.FieldNotes, field.TypeString)
 	}
 	if value, ok := _u.mutation.LastDrawnAt(); ok {
 		_spec.SetField(card.FieldLastDrawnAt, field.TypeTime, value)
@@ -358,37 +336,23 @@ func (_u *CardUpdateOne) SetNillableName(v *string) *CardUpdateOne {
 	return _u
 }
 
-// SetKind sets the "kind" field.
-func (_u *CardUpdateOne) SetKind(v card.Kind) *CardUpdateOne {
-	_u.mutation.SetKind(v)
+// SetNotes sets the "notes" field.
+func (_u *CardUpdateOne) SetNotes(v string) *CardUpdateOne {
+	_u.mutation.SetNotes(v)
 	return _u
 }
 
-// SetNillableKind sets the "kind" field if the given value is not nil.
-func (_u *CardUpdateOne) SetNillableKind(v *card.Kind) *CardUpdateOne {
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (_u *CardUpdateOne) SetNillableNotes(v *string) *CardUpdateOne {
 	if v != nil {
-		_u.SetKind(*v)
+		_u.SetNotes(*v)
 	}
 	return _u
 }
 
-// SetDetails sets the "details" field.
-func (_u *CardUpdateOne) SetDetails(v string) *CardUpdateOne {
-	_u.mutation.SetDetails(v)
-	return _u
-}
-
-// SetNillableDetails sets the "details" field if the given value is not nil.
-func (_u *CardUpdateOne) SetNillableDetails(v *string) *CardUpdateOne {
-	if v != nil {
-		_u.SetDetails(*v)
-	}
-	return _u
-}
-
-// ClearDetails clears the value of the "details" field.
-func (_u *CardUpdateOne) ClearDetails() *CardUpdateOne {
-	_u.mutation.ClearDetails()
+// ClearNotes clears the value of the "notes" field.
+func (_u *CardUpdateOne) ClearNotes() *CardUpdateOne {
+	_u.mutation.ClearNotes()
 	return _u
 }
 
@@ -532,11 +496,6 @@ func (_u *CardUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Card.name": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Kind(); ok {
-		if err := card.KindValidator(v); err != nil {
-			return &ValidationError{Name: "kind", err: fmt.Errorf(`ent: validator failed for field "Card.kind": %w`, err)}
-		}
-	}
 	if _u.mutation.DeckCleared() && len(_u.mutation.DeckIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Card.deck"`)
 	}
@@ -575,14 +534,11 @@ func (_u *CardUpdateOne) sqlSave(ctx context.Context) (_node *Card, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(card.FieldName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Kind(); ok {
-		_spec.SetField(card.FieldKind, field.TypeEnum, value)
+	if value, ok := _u.mutation.Notes(); ok {
+		_spec.SetField(card.FieldNotes, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Details(); ok {
-		_spec.SetField(card.FieldDetails, field.TypeString, value)
-	}
-	if _u.mutation.DetailsCleared() {
-		_spec.ClearField(card.FieldDetails, field.TypeString)
+	if _u.mutation.NotesCleared() {
+		_spec.ClearField(card.FieldNotes, field.TypeString)
 	}
 	if value, ok := _u.mutation.LastDrawnAt(); ok {
 		_spec.SetField(card.FieldLastDrawnAt, field.TypeTime, value)

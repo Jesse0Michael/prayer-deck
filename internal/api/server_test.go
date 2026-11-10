@@ -20,7 +20,6 @@ import (
 	"github.com/jesse0michael/pkg/test"
 	"github.com/jesse0michael/prayer-deck/internal/ent"
 	"github.com/jesse0michael/prayer-deck/internal/ent/asset"
-	"github.com/jesse0michael/prayer-deck/internal/ent/card"
 	"github.com/jesse0michael/prayer-deck/internal/store"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -46,10 +45,10 @@ func testDeck() *store.Deck {
 const testDeckJSON = `{"id":"00000000-0000-0000-0000-0000000000d1","name":"test-deck","card_count":3,"remaining":2,"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
 
 func testCard() *ent.Card {
-	return &ent.Card{ID: testCardID, Name: "test-card", Kind: card.KindCouple, Details: "test-details", CreatedAt: testTime, UpdatedAt: testTime}
+	return &ent.Card{ID: testCardID, Name: "test-card", Notes: "test-notes", CreatedAt: testTime, UpdatedAt: testTime}
 }
 
-const testCardJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","kind":"couple","details":"test-details","artwork":null,"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
+const testCardJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","notes":"test-notes","artwork":null,"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
 
 func testCardWithArtwork() *ent.Card {
 	c := testCard()
@@ -61,7 +60,7 @@ func testCardWithArtwork() *ent.Card {
 	return c
 }
 
-const testCardWithArtworkJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","kind":"couple","details":"test-details","artwork":{"display_url":"https://storage.test/test-display","thumbnail_url":"https://storage.test/test-thumbnail","original_url":"https://storage.test/test-original","width":1024,"height":1536},"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
+const testCardWithArtworkJSON = `{"id":"00000000-0000-0000-0000-0000000000c1","name":"test-card","notes":"test-notes","artwork":{"display_url":"https://storage.test/test-display","thumbnail_url":"https://storage.test/test-thumbnail","original_url":"https://storage.test/test-original","width":1024,"height":1536},"created_at":"2026-11-09T12:00:00Z","updated_at":"2026-11-09T12:00:00Z"}`
 
 func expectURLs(storage *MockStorage) {
 	storage.EXPECT().URL(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, key string) (string, error) {
@@ -468,9 +467,8 @@ func TestServer_decks(t *testing.T) {
 }
 
 func TestServer_cards(t *testing.T) {
-	kind := card.KindCouple
 	name := "test-card"
-	details := "test-details"
+	notes := "test-notes"
 	tests := []struct {
 		name         string
 		method       string
@@ -516,9 +514,9 @@ func TestServer_cards(t *testing.T) {
 			name:   "create card",
 			method: http.MethodPost,
 			path:   "/v1/decks/" + testDeckID.String() + "/cards",
-			body:   `{"name":" test-card ","kind":"couple","details":"test-details"}`,
+			body:   `{"name":" test-card ","notes":"test-notes"}`,
 			mockSetup: func(st *MockStore, _ *MockStorage) {
-				st.EXPECT().CreateCard(gomock.Any(), testUserID, testDeckID, store.CardInput{Name: &name, Kind: &kind, Details: &details}).Return(testCard(), nil)
+				st.EXPECT().CreateCard(gomock.Any(), testUserID, testDeckID, store.CardInput{Name: &name, Notes: &notes}).Return(testCard(), nil)
 			},
 			expectedCode: http.StatusCreated,
 			expectedBody: testCardJSON,
@@ -527,19 +525,10 @@ func TestServer_cards(t *testing.T) {
 			name:         "create card without a name",
 			method:       http.MethodPost,
 			path:         "/v1/decks/" + testDeckID.String() + "/cards",
-			body:         `{"kind":"couple"}`,
+			body:         `{"notes":"test-notes"}`,
 			mockSetup:    func(*MockStore, *MockStorage) {},
 			expectedCode: http.StatusBadRequest,
 			expectedBody: `{"errors":[{"message":"name is required"}]}`,
-		},
-		{
-			name:         "create card with an unknown kind",
-			method:       http.MethodPost,
-			path:         "/v1/decks/" + testDeckID.String() + "/cards",
-			body:         `{"name":"test-card","kind":"test-kind"}`,
-			mockSetup:    func(*MockStore, *MockStorage) {},
-			expectedCode: http.StatusBadRequest,
-			expectedBody: `{"errors":[{"message":"kind must be person, couple, or family"}]}`,
 		},
 		{
 			name:   "get card",
@@ -553,12 +542,12 @@ func TestServer_cards(t *testing.T) {
 			expectedBody: testCardWithArtworkJSON,
 		},
 		{
-			name:   "update card details",
+			name:   "update card notes",
 			method: http.MethodPatch,
 			path:   "/v1/cards/" + testCardID.String(),
-			body:   `{"details":"test-details"}`,
+			body:   `{"notes":"test-notes"}`,
 			mockSetup: func(st *MockStore, _ *MockStorage) {
-				st.EXPECT().UpdateCard(gomock.Any(), testUserID, testCardID, store.CardInput{Details: &details}).Return(testCard(), nil)
+				st.EXPECT().UpdateCard(gomock.Any(), testUserID, testCardID, store.CardInput{Notes: &notes}).Return(testCard(), nil)
 			},
 			expectedCode: http.StatusOK,
 			expectedBody: testCardJSON,

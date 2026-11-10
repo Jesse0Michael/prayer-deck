@@ -29,30 +29,16 @@ func (_c *CardCreate) SetName(v string) *CardCreate {
 	return _c
 }
 
-// SetKind sets the "kind" field.
-func (_c *CardCreate) SetKind(v card.Kind) *CardCreate {
-	_c.mutation.SetKind(v)
+// SetNotes sets the "notes" field.
+func (_c *CardCreate) SetNotes(v string) *CardCreate {
+	_c.mutation.SetNotes(v)
 	return _c
 }
 
-// SetNillableKind sets the "kind" field if the given value is not nil.
-func (_c *CardCreate) SetNillableKind(v *card.Kind) *CardCreate {
+// SetNillableNotes sets the "notes" field if the given value is not nil.
+func (_c *CardCreate) SetNillableNotes(v *string) *CardCreate {
 	if v != nil {
-		_c.SetKind(*v)
-	}
-	return _c
-}
-
-// SetDetails sets the "details" field.
-func (_c *CardCreate) SetDetails(v string) *CardCreate {
-	_c.mutation.SetDetails(v)
-	return _c
-}
-
-// SetNillableDetails sets the "details" field if the given value is not nil.
-func (_c *CardCreate) SetNillableDetails(v *string) *CardCreate {
-	if v != nil {
-		_c.SetDetails(*v)
+		_c.SetNotes(*v)
 	}
 	return _c
 }
@@ -174,10 +160,6 @@ func (_c *CardCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *CardCreate) defaults() {
-	if _, ok := _c.mutation.Kind(); !ok {
-		v := card.DefaultKind
-		_c.mutation.SetKind(v)
-	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := card.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -200,14 +182,6 @@ func (_c *CardCreate) check() error {
 	if v, ok := _c.mutation.Name(); ok {
 		if err := card.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Card.name": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.Kind(); !ok {
-		return &ValidationError{Name: "kind", err: errors.New(`ent: missing required field "Card.kind"`)}
-	}
-	if v, ok := _c.mutation.Kind(); ok {
-		if err := card.KindValidator(v); err != nil {
-			return &ValidationError{Name: "kind", err: fmt.Errorf(`ent: validator failed for field "Card.kind": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
@@ -258,13 +232,9 @@ func (_c *CardCreate) createSpec() (*Card, *sqlgraph.CreateSpec) {
 		_spec.SetField(card.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
-	if value, ok := _c.mutation.Kind(); ok {
-		_spec.SetField(card.FieldKind, field.TypeEnum, value)
-		_node.Kind = value
-	}
-	if value, ok := _c.mutation.Details(); ok {
-		_spec.SetField(card.FieldDetails, field.TypeString, value)
-		_node.Details = value
+	if value, ok := _c.mutation.Notes(); ok {
+		_spec.SetField(card.FieldNotes, field.TypeString, value)
+		_node.Notes = value
 	}
 	if value, ok := _c.mutation.LastDrawnAt(); ok {
 		_spec.SetField(card.FieldLastDrawnAt, field.TypeTime, value)
