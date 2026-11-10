@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ApiError, type ApiClient } from "../api/client";
+import { ApiError } from "../api/client";
+import type { DeckApi } from "../api/deckApi";
 import type { DealtCard, Deck, Draw } from "../api/types";
 import { CardBack } from "../components/CardBack";
 import { PlayingCard } from "../components/PlayingCard";
@@ -49,9 +50,13 @@ function computeLayout({ width, height }: Size, count: number) {
   return { handW, handH, deckW, deckIdle, deckAside, discardAside, slot };
 }
 
-function loadRevealed(drawID: string): Set<string> {
+function revealedKey(deckID: string): string {
+  return `${REVEALED_KEY}.${deckID}`;
+}
+
+function loadRevealed(deckID: string, drawID: string): Set<string> {
   try {
-    const saved = JSON.parse(localStorage.getItem(REVEALED_KEY) ?? "null") as { drawID: string; cardIDs: string[] } | null;
+    const saved = JSON.parse(localStorage.getItem(revealedKey(deckID)) ?? "null") as { drawID: string; cardIDs: string[] } | null;
     if (saved?.drawID === drawID) return new Set(saved.cardIDs);
   } catch {
     // A corrupt entry just means nothing is revealed.
@@ -59,14 +64,14 @@ function loadRevealed(drawID: string): Set<string> {
   return new Set();
 }
 
-function saveRevealed(drawID: string, revealed: Set<string>) {
-  localStorage.setItem(REVEALED_KEY, JSON.stringify({ drawID, cardIDs: [...revealed] }));
+function saveRevealed(deckID: string, drawID: string, revealed: Set<string>) {
+  localStorage.setItem(revealedKey(deckID), JSON.stringify({ drawID, cardIDs: [...revealed] }));
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface DrawViewProps {
-  api: ApiClient;
+  api: DeckApi;
   deck: Deck;
   onDeckChanged: () => void;
   onManage: () => void;
@@ -100,7 +105,7 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
           setDraw(current);
           setDiscard(current.discard);
           setRemaining(current.remaining);
-          setRevealed(loadRevealed(current.id));
+          setRevealed(loadRevealed(deck.id, current.id));
           setPhase("dealt");
         } else {
           setPhase("idle");
@@ -141,13 +146,13 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       setDraw(dealt);
       setRemaining(dealt.remaining);
       setRevealed(new Set());
-      saveRevealed(dealt.id, new Set());
+      saveRevealed(deck.id, dealt.id, new Set());
       setPhase("dealing");
       onDeckChanged();
       await sleep(DEAL_STAGGER * 1000 * (dealt.cards.length - 1) + 700);
       setPhase("dealt");
     },
-    [onDeckChanged],
+    [deck.id, onDeckChanged],
   );
 
   /** Gathers the hand and the discard back into the deck, shuffles, and deals from a fresh pass. */
@@ -197,11 +202,11 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       setRevealed((prev) => {
         const next = new Set(prev);
         cardIDs.forEach((id) => next.add(id));
-        saveRevealed(draw.id, next);
+        saveRevealed(deck.id, draw.id, next);
         return next;
       });
     },
-    [draw],
+    [deck.id, draw],
   );
 
 

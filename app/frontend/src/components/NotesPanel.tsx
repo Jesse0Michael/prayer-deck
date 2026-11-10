@@ -7,11 +7,11 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import type { ApiClient } from "../api/client";
+import type { DeckApi } from "../api/deckApi";
 import type { Note } from "../api/types";
 
 interface NotesPanelProps {
-  api: ApiClient;
+  api: DeckApi;
   /** Null until the card exists; the first note then calls createCard. */
   cardID: string | null;
   createCard?: () => Promise<string>;

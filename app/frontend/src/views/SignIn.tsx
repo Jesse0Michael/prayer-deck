@@ -98,6 +98,9 @@ export function SignIn({ api }: { api: ApiClient }) {
         )}
         {providers && providers.length === 0 && <p className="error-text">No sign-in methods are configured on the server.</p>}
         {error && <p className="error-text">{error}</p>}
+        <a className="signin-about" href="#/about">
+          What is Prayer Deck?
+        </a>
       </motion.div>
     </div>
   );

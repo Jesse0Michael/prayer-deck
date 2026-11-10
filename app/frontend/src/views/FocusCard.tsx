@@ -1,12 +1,12 @@
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-import type { ApiClient } from "../api/client";
+import type { DeckApi } from "../api/deckApi";
 import type { DealtCard } from "../api/types";
 import { NotesPanel } from "../components/NotesPanel";
 import { PlayingCard } from "../components/PlayingCard";
 
 interface FocusCardProps {
-  api: ApiClient;
+  api: DeckApi;
   card: DealtCard;
   onClose: () => void;
 }

@@ -1,13 +1,13 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import type { ApiClient } from "../api/client";
+import type { DeckApi } from "../api/deckApi";
 import type { Card, Deck } from "../api/types";
 import { CardFace } from "../components/CardFace";
 import { CardEditor } from "./CardEditor";
 
 interface ManageViewProps {
-  api: ApiClient;
+  api: DeckApi;
   deck: Deck;
   onDecksChanged: () => void;
 }
@@ -80,10 +80,6 @@ export function ManageView({ api, deck, onDecksChanged }: ManageViewProps) {
           ))}
         </AnimatePresence>
       </motion.ul>
-
-      {cards?.length === 0 && (
-        <p className="empty-note">Start with the people who come to mind first. You can add pictures now or later.</p>
-      )}
 
       {createPortal(
         <AnimatePresence>
