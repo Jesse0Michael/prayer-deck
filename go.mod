@@ -1,6 +1,6 @@
 module github.com/jesse0michael/prayer-deck
 
-go 1.27.3
+go 1.27.4
 
 tool (
 	entgo.io/ent/cmd/ent
