@@ -67,4 +67,6 @@ jobs:
 
       - name: Build Server Binary
         working-directory: app
+        env:
+          CGO_ENABLED: "0"
         run: go build -tags server -o /tmp/prayer-deck-web .
