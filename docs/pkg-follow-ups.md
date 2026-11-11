@@ -22,6 +22,20 @@ would be better fixed or shared there. Nothing has been changed in `pkg`.
   peer IP or hostname` at startup through the Splunk instrumentation, which is
   noisy and misleading.
 
+## Enhancements
+
+- **`config.PostgresConfig`: accept a single connection URL.** Managed hosts such
+  as Neon hand out one `postgresql://user:password@host/db?sslmode=require`
+  string, but the config only reads the discrete `POSTGRES_HOST`, `POSTGRES_USER`,
+  `POSTGRES_PASSWORD`, `POSTGRES_DB`, and `POSTGRES_SSLMODE` fields (v0.11.0), so
+  the URL has to be taken apart by hand. Add an optional `POSTGRES_URL` (or
+  `DATABASE_URL`) field that, when set, supplies every connection parameter and
+  takes precedence over the discrete fields; `ConnectionString()` can return it
+  directly. The pool settings (`POSTGRES_MAX_CONNS` and friends) stay separate.
+  Prayer Deck would then deploy with one secret instead of five variables and
+  could drop the split in `deploy/cloudrun.tf`. Use the direct (non-pooled) Neon
+  URL; the pooled one runs through PgBouncer in transaction mode.
+
 ## Candidates to move into pkg
 
 - **CORS middleware** (`internal/api/middleware.go`): an allow-list of origins

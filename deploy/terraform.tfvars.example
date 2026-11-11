@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars for local runs. CI reads the same values from
+# repository variables (TF_VAR_*), so nothing here is secret.
+project_id            = "your-gcp-project"
+domain                = "example.com"
+cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+google_client_id      = "1234567890-abc.apps.googleusercontent.com"

@@ -80,6 +80,7 @@ app/                    Wails v3 client (separate Go module)
   frontend/             React + TypeScript + Vite + motion
     src/api/schema.d.ts generated from api/openapi.yaml; never edit by hand
     bindings/           generated Wails bindings; never edit by hand
+deploy/                 Terraform for production (Cloud Run, Neon, R2, Pages); see docs/deploy.md
 docs/                   product brief, decisions, art direction, pkg follow-ups
 ```
 
