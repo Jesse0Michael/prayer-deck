@@ -21,13 +21,11 @@ resource "cloudflare_r2_bucket_cors" "artwork" {
 data "cloudflare_account_api_token_permission_groups_list" "object_read" {
   account_id = var.cloudflare_account_id
   name       = "Workers R2 Storage Bucket Item Read"
-  scope      = "com.cloudflare.api.account"
 }
 
 data "cloudflare_account_api_token_permission_groups_list" "object_write" {
   account_id = var.cloudflare_account_id
   name       = "Workers R2 Storage Bucket Item Write"
-  scope      = "com.cloudflare.api.account"
 }
 
 # R2's S3 credentials are an API token: the access key ID is the token ID and
