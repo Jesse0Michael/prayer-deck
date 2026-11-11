@@ -72,3 +72,14 @@ lint: # Run the Go linters, vulnerability checker, and frontend typecheck.
 .PHONY: test
 test: # Run the tests.
 	go test -cover ./... -timeout 120s
+
+#################################################################################
+# DEPLOY COMMANDS
+#################################################################################
+.PHONY: tf-fmt
+tf-fmt: # Format the Terraform configuration.
+	terraform fmt -recursive deploy
+
+.PHONY: tf-plan
+tf-plan: # Plan the production infrastructure. Needs deploy/terraform.tfvars and TF_STATE_BUCKET.
+	cd deploy && terraform init -backend-config="bucket=$(TF_STATE_BUCKET)" && terraform plan

@@ -1,6 +1,14 @@
 bin/
 tmp/
 .env
+client_secret.json
 
 # misc
 .DS_Store
+
+# terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
