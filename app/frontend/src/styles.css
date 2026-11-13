@@ -319,43 +319,14 @@ select {
   font-size: clamp(1rem, 20cqi, 3.2rem);
 }
 
-.card-back svg {
+.card-back img {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.card-back .ink,
-.card-back .ink-thin,
-.card-back .ink-hair {
-  fill: none;
-  stroke: var(--ink);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.card-back .ink {
-  stroke-width: 3.4;
-}
-
-.card-back .ink-thin {
-  stroke-width: 1.5;
-}
-
-.card-back .ink-hair {
-  stroke-width: 0.8;
-  opacity: 0.45;
-}
-
-.card-back .leaf {
-  fill: var(--sage);
-  fill-opacity: 0.75;
-  stroke: var(--ink);
-  stroke-width: 0.9;
-}
-
-.card-back .dot {
-  fill: var(--terracotta);
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Draw table */
