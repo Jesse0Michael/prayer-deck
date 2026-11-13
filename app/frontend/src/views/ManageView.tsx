@@ -3,33 +3,44 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { DeckApi } from "../api/deckApi";
 import type { Card, Deck } from "../api/types";
+import { CardBack } from "../components/CardBack";
 import { CardFace } from "../components/CardFace";
+import { useDelayed } from "../lib/useDelayed";
 import { CardEditor } from "./CardEditor";
 
 interface ManageViewProps {
   api: DeckApi;
-  deck: Deck;
+  /** Undefined while the deck is still loading. */
+  deck: Deck | undefined;
   onDecksChanged: () => void;
 }
 
 type Editing = { card?: Card } | null;
+
+const PLACEHOLDER_COUNT = 5;
+const SLOW_LOAD_MS = 2500;
 
 export function ManageView({ api, deck, onDecksChanged }: ManageViewProps) {
   const [cards, setCards] = useState<Card[] | null>(null);
   const [editing, setEditing] = useState<Editing>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const deckID = deck?.id;
+  const loading = cards === null && !error;
+  const slow = useDelayed(loading, SLOW_LOAD_MS);
+
   useEffect(() => {
+    if (!deckID) return;
     let cancelled = false;
     setCards(null);
     api
-      .cards(deck.id)
+      .cards(deckID)
       .then((c) => !cancelled && setCards(c))
       .catch((err: Error) => !cancelled && setError(err.message));
     return () => {
       cancelled = true;
     };
-  }, [api, deck.id]);
+  }, [api, deckID]);
 
   const sortCards = (list: Card[]) => [...list].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -51,11 +62,24 @@ export function ManageView({ api, deck, onDecksChanged }: ManageViewProps) {
 
       <motion.ul className="card-grid" layout>
         <li>
-          <button type="button" className="grid-card grid-add" onClick={() => setEditing({})}>
+          <button type="button" className="grid-card grid-add" onClick={() => setEditing({})} disabled={!deck}>
             <span className="grid-add-plus">+</span>
             <span>Add a card</span>
           </button>
         </li>
+        {loading &&
+          Array.from({ length: PLACEHOLDER_COUNT }, (_, i) => (
+            <li key={`placeholder-${i}`} aria-hidden="true">
+              <motion.div
+                className="grid-card grid-placeholder"
+                initial={{ opacity: 0.45, y: 0 }}
+                animate={{ opacity: [0.45, 0.85, 0.45], y: [0, -8, 0] }}
+                transition={{ duration: 1.6, ease: "easeInOut", repeat: Infinity, delay: i * 0.18 }}
+              >
+                <CardBack />
+              </motion.div>
+            </li>
+          ))}
         <AnimatePresence initial={false}>
           {cards?.map((card) => (
             <motion.li
@@ -81,9 +105,23 @@ export function ManageView({ api, deck, onDecksChanged }: ManageViewProps) {
         </AnimatePresence>
       </motion.ul>
 
+      <AnimatePresence>
+        {slow && (
+          <motion.p
+            className="loading-note"
+            role="status"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            Gathering your cards…
+          </motion.p>
+        )}
+      </AnimatePresence>
+
       {createPortal(
         <AnimatePresence>
-          {editing && (
+          {editing && deck && (
           <CardEditor
             api={api}
             deckID={deck.id}

@@ -48,6 +48,8 @@ resource "google_cloud_run_v2_service" "api" {
           STORAGE_BUCKET        = cloudflare_r2_bucket.artwork.name
           STORAGE_ACCESS_KEY    = cloudflare_account_token.r2_s3.id
           STORAGE_CREATE_BUCKET = "false"
+          # The longest presigned URLs allow, so the client's cached deck goes a week between refreshes.
+          STORAGE_URL_EXPIRY = "168h"
         }
         content {
           name  = env.key

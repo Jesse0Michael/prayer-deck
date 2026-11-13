@@ -17,7 +17,7 @@ interface DeckAppProps {
 
 /** The signed-in app: a header with Draw and Cards tabs over the account's deck. */
 export function DeckApp({ api, actions, embedded = false }: DeckAppProps) {
-  const [decks, setDecks] = useState<Deck[]>([]);
+  const [decks, setDecks] = useState<Deck[] | null>(null);
   const [view, setView] = useState<View>("draw");
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +33,9 @@ export function DeckApp({ api, actions, embedded = false }: DeckAppProps) {
   }, [refreshDecks]);
 
   // The UI presents a single deck; the first one holds every card.
-  const deck = decks[0];
+  const deck = decks?.[0];
+  // Views render while decks load so a cold server shows their loading animations.
+  const loading = decks === null && !error;
 
   return (
     <div className={`app${embedded ? " app-embedded" : ""}`}>
@@ -57,9 +59,9 @@ export function DeckApp({ api, actions, embedded = false }: DeckAppProps) {
 
       <main className="app-main">
         <AnimatePresence mode="wait">
-          {deck && (
+          {(deck || loading) && (
             <motion.div
-              key={`${view}-${deck.id}`}
+              key={view}
               className="view"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

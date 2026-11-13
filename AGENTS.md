@@ -155,5 +155,9 @@ run `make generate` so the frontend types follow. When you change a schema, run
 - Preload and decode card faces (`lib/media.ts`) before a reveal can show them.
 - Overlays render in a portal on `document.body`. Set `backdrop-filter` inline,
   because the CSS minifier drops the unprefixed property.
+- Signed-in views talk to `CachedDeckApi` (`api/cachedApi.ts`), which answers
+  reads from local storage to avoid Cloud Run requests. Writes go to the server
+  and patch the cache; a shuffle refetches the deck and cards. When you add an
+  endpoint, decide how it reads from and updates that cache.
 - The frontend reads its API URL from the Wails `ConfigService` at runtime and
   falls back to `VITE_API_URL` outside Wails.

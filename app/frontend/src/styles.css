@@ -627,6 +627,21 @@ select {
   color: var(--ink);
 }
 
+.grid-add:disabled {
+  cursor: default;
+}
+
+.grid-placeholder {
+  cursor: default;
+}
+
+.loading-note {
+  margin: 1.5rem 0 0;
+  text-align: center;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
 .grid-add-plus {
   font-family: var(--font-hand);
   font-size: 3rem;

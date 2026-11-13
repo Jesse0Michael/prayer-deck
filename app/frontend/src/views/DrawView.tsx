@@ -7,6 +7,7 @@ import type { DealtCard, Deck, Draw } from "../api/types";
 import { CardBack } from "../components/CardBack";
 import { PlayingCard } from "../components/PlayingCard";
 import { preloadFaces } from "../lib/media";
+import { useDelayed } from "../lib/useDelayed";
 import { useElementSize, type Size } from "../lib/useElementSize";
 import { FocusCard } from "./FocusCard";
 
@@ -19,6 +20,8 @@ const SHUFFLE_MS = 1500;
 const DEAL_STAGGER = 0.22;
 const COLLECT_MS = 650;
 const DISCARD_MS = 700;
+const SLOW_LOAD_MS = 2500;
+const QUICK_LOAD_MS = 250;
 const REVEALED_KEY = "prayer-deck.revealed";
 
 const dealSpring = { type: "spring", stiffness: 120, damping: 17, mass: 1 } as const;
@@ -72,7 +75,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface DrawViewProps {
   api: DeckApi;
-  deck: Deck;
+  /** Undefined while the deck is still loading. */
+  deck: Deck | undefined;
   onDeckChanged: () => void;
   onManage: () => void;
 }
@@ -87,6 +91,22 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const shuffleStart = useRef(performance.now());
+  const deckID = deck?.id;
+  const shuffling = phase === "shuffling" || phase === "loading";
+  const slowLoad = useDelayed(phase === "loading", SLOW_LOAD_MS);
+
+  useEffect(() => {
+    if (shuffling) shuffleStart.current = performance.now();
+  }, [shuffling]);
+
+  // Loading riffles the deck on a loop; stopping mid-riffle would snap the cards back,
+  // but a load that finishes before the cards have moved far deals straight away.
+  const untilRiffleEnds = useCallback(() => {
+    const elapsed = performance.now() - shuffleStart.current;
+    if (elapsed < QUICK_LOAD_MS) return 0;
+    return SHUFFLE_MS - (elapsed % SHUFFLE_MS);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,23 +115,35 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
     setDiscard([]);
     setFocusIndex(null);
     setError(null);
+    if (!deckID) return;
     api
-      .currentDraw(deck.id)
+      .currentDraw(deckID)
       .then(async (current) => {
         if (cancelled) return;
         if (current && current.cards.length > 0) {
           await preloadFaces([...current.cards, ...current.discard.slice(-1)], 3000);
           if (cancelled) return;
+          await sleep(untilRiffleEnds());
+          if (cancelled) return;
           setDraw(current);
           setDiscard(current.discard);
           setRemaining(current.remaining);
-          setRevealed(loadRevealed(deck.id, current.id));
+          setRevealed(new Set());
+          setPhase("dealing");
+          await sleep(DEAL_STAGGER * 1000 * (current.cards.length - 1) + 700);
+          if (cancelled) return;
+          // Cards already turned over this draw flip back up once they land.
+          setRevealed(loadRevealed(deckID, current.id));
           setPhase("dealt");
         } else {
+          await sleep(untilRiffleEnds());
+          if (cancelled) return;
           setPhase("idle");
         }
       })
-      .catch((err: Error) => {
+      .catch(async (err: Error) => {
+        if (cancelled) return;
+        await sleep(untilRiffleEnds());
         if (cancelled) return;
         setError(err.message);
         setPhase("idle");
@@ -119,7 +151,7 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
     return () => {
       cancelled = true;
     };
-  }, [api, deck.id]);
+  }, [api, deckID, untilRiffleEnds]);
 
   const count = draw?.cards.length ?? DRAW_COUNT;
   const layout = useMemo(() => computeLayout(size, count), [size, count]);
@@ -134,11 +166,12 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
 
   const fetchDraw = useCallback(
     async (shuffle: boolean) => {
-      const dealt = await api.draw(deck.id, DRAW_COUNT, shuffle);
+      if (!deckID) throw new Error("The deck has not loaded yet");
+      const dealt = await api.draw(deckID, DRAW_COUNT, shuffle);
       await preloadFaces(dealt.cards);
       return dealt;
     },
-    [api, deck.id],
+    [api, deckID],
   );
 
   const deal = useCallback(
@@ -146,13 +179,13 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       setDraw(dealt);
       setRemaining(dealt.remaining);
       setRevealed(new Set());
-      saveRevealed(deck.id, dealt.id, new Set());
+      if (deckID) saveRevealed(deckID, dealt.id, new Set());
       setPhase("dealing");
       onDeckChanged();
       await sleep(DEAL_STAGGER * 1000 * (dealt.cards.length - 1) + 700);
       setPhase("dealt");
     },
-    [deck.id, onDeckChanged],
+    [deckID, onDeckChanged],
   );
 
   /** Gathers the hand and the discard back into the deck, shuffles, and deals from a fresh pass. */
@@ -198,15 +231,15 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
 
   const reveal = useCallback(
     (cardIDs: string[]) => {
-      if (!draw) return;
+      if (!draw || !deckID) return;
       setRevealed((prev) => {
         const next = new Set(prev);
         cardIDs.forEach((id) => next.add(id));
-        saveRevealed(deck.id, draw.id, next);
+        saveRevealed(deckID, draw.id, next);
         return next;
       });
     },
-    [deck.id, draw],
+    [deckID, draw],
   );
 
 
@@ -230,7 +263,7 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
                 aria-label={phase === "idle" ? "Shuffle and draw three cards" : "Draw the next cards"}
               >
                 {Array.from({ length: deckDepth }, (_, i) => (
-                  <ShuffleCard key={i} index={i} width={layout.deckW} shuffling={phase === "shuffling"} />
+                  <ShuffleCard key={i} index={i} width={layout.deckW} shuffling={shuffling} loop={phase === "loading"} />
                 ))}
               </button>
             </motion.div>
@@ -289,7 +322,7 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
       <div className="draw-controls">
         <AnimatePresence mode="wait">
           <motion.div
-            key={error === "empty" ? "empty" : phase}
+            key={error === "empty" ? "empty" : slowLoad ? "slow-load" : phase}
             className="draw-hint"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -309,6 +342,8 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
               </button>
             ) : phase === "shuffling" ? (
               <p>Shuffling…</p>
+            ) : slowLoad ? (
+              <p role="status">Gathering your cards…</p>
             ) : phase === "dealt" ? (
               <div className="draw-actions">
                 <button type="button" className="btn" onClick={shuffleAndDraw}>
@@ -338,8 +373,16 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
   );
 }
 
+interface ShuffleCardProps {
+  index: number;
+  width: number;
+  shuffling: boolean;
+  /** Riffles until shuffling ends rather than once. */
+  loop: boolean;
+}
+
 /** One card in the deck stack; while shuffling, alternate cards riffle out to either side and back. */
-function ShuffleCard({ index, width, shuffling }: { index: number; width: number; shuffling: boolean }) {
+function ShuffleCard({ index, width, shuffling, loop }: ShuffleCardProps) {
   const side = index % 2 === 0 ? -1 : 1;
   const rest = { x: 0, y: -index * 1.4, rotate: ((index * 37) % 7) - 3, zIndex: index };
   const spread = width * 0.62;
@@ -359,7 +402,13 @@ function ShuffleCard({ index, width, shuffling }: { index: number; width: number
       }
       transition={
         shuffling
-          ? { duration: SHUFFLE_MS / 1000, times: [0, 0.25, 0.5, 0.75, 1], ease: "easeInOut", delay: index * 0.012 }
+          ? {
+              duration: SHUFFLE_MS / 1000,
+              times: [0, 0.25, 0.5, 0.75, 1],
+              ease: "easeInOut",
+              delay: index * 0.012,
+              repeat: loop ? Infinity : 0,
+            }
           : { type: "spring", stiffness: 200, damping: 20 }
       }
     >

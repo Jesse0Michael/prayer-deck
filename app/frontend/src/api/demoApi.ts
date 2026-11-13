@@ -1,3 +1,21 @@
+import amandaThumbnail from "../assets/demo/amanda-thumb.jpg";
+import amandaDisplay from "../assets/demo/amanda.jpg";
+import clementineThumbnail from "../assets/demo/clementine-thumb.jpg";
+import clementineDisplay from "../assets/demo/clementine.jpg";
+import dadThumbnail from "../assets/demo/dad-thumb.jpg";
+import dadDisplay from "../assets/demo/dad.jpg";
+import foothillsThumbnail from "../assets/demo/foothills_baptist_church-thumb.jpg";
+import foothillsDisplay from "../assets/demo/foothills_baptist_church.jpg";
+import grandmaThumbnail from "../assets/demo/grandma-thumb.jpg";
+import grandmaDisplay from "../assets/demo/grandma.jpg";
+import jacobMollyThumbnail from "../assets/demo/jacob_molly-thumb.jpg";
+import jacobMollyDisplay from "../assets/demo/jacob_molly.jpg";
+import keatanThumbnail from "../assets/demo/keatan-thumb.jpg";
+import keatanDisplay from "../assets/demo/keatan.jpg";
+import lorelaiThumbnail from "../assets/demo/lorelai-thumb.jpg";
+import lorelaiDisplay from "../assets/demo/lorelai.jpg";
+import mccoysThumbnail from "../assets/demo/mccoys-thumb.jpg";
+import mccoysDisplay from "../assets/demo/mccoys.jpg";
 import { ApiError } from "./client";
 import type { DeckApi } from "./deckApi";
 import type { Card, CardInput, Deck, Draw, DrawnCard, Media, Note } from "./types";
@@ -6,34 +24,51 @@ const DEMO_DECK_ID = "demo-deck";
 const DAY_MS = 86_400_000;
 const LATENCY_MS = 120;
 
+/** Every bundled demo image shares these dimensions. */
+const IMAGE_WIDTH = 805;
+const IMAGE_HEIGHT = 1200;
+
 interface Seed {
   name: string;
+  /** Bundled artwork URLs. */
+  image: { display: string; thumbnail: string };
   /** Newest first, each with how many days ago it was written. */
   notes: [daysAgo: number, text: string][];
 }
 
 const SEEDS: Seed[] = [
+  { name: "Amanda", image: { display: amandaDisplay, thumbnail: amandaThumbnail }, notes: [] },
+  { name: "Clementine", image: { display: clementineDisplay, thumbnail: clementineThumbnail }, notes: [] },
   {
-    name: "Grandma Ruth",
+    name: "Dad",
+    image: { display: dadDisplay, thumbnail: dadThumbnail },
+    notes: [[6, "Pray for strength and good health this season."]],
+  },
+  {
+    name: "Foothills Baptist Church",
+    image: { display: foothillsDisplay, thumbnail: foothillsThumbnail },
     notes: [
-      [1, "Hip surgery went well. Pray for a steady recovery and good company in rehab."],
-      [9, "Surgery scheduled for the 14th. She is nervous but trying not to show it."],
+      [1, "Pray for Sunday's service and everyone who walks through the doors."],
+      [10, "Give thanks for the volunteers who set up every week."],
     ],
   },
-  { name: "Sam & Joy", notes: [[3, "Expecting in March. Pray for rest, and for peace about the move."]] },
-  { name: "Uncle Dale", notes: [[6, "New job with a long commute. Pray for patience and for evenings at home."]] },
   {
-    name: "The Okafors",
-    notes: [
-      [0, "Chidi had a hard first week. Pray for one good friend."],
-      [12, "Chidi starts kindergarten. Pray for brave mornings."],
-    ],
+    name: "Grandma",
+    image: { display: grandmaDisplay, thumbnail: grandmaThumbnail },
+    notes: [[2, "Give thanks for her, and pray for good days this week."]],
   },
-  { name: "Marcus", notes: [[2, "Finals all next week. Pray for focus, and for sleep."]] },
-  { name: "Aunt Lena", notes: [[20, "Lonely since the move. Pray for a church family close by."]] },
-  { name: "Pastor Ben", notes: [] },
-  { name: "Priya", notes: [[4, "Waiting on test results. Pray for calm while she waits."]] },
-  { name: "Mom & Dad", notes: [[8, "Their 40th anniversary is coming up. Give thanks for them."]] },
+  {
+    name: "Jacob & Molly",
+    image: { display: jacobMollyDisplay, thumbnail: jacobMollyThumbnail },
+    notes: [[3, "Pray for their marriage, and for rest."]],
+  },
+  {
+    name: "Keatan",
+    image: { display: keatanDisplay, thumbnail: keatanThumbnail },
+    notes: [[4, "Pray for a good week at school."]],
+  },
+  { name: "Lorelai", image: { display: lorelaiDisplay, thumbnail: lorelaiThumbnail }, notes: [] },
+  { name: "The McCoys", image: { display: mccoysDisplay, thumbnail: mccoysThumbnail }, notes: [] },
 ];
 
 interface DemoCard {
@@ -51,7 +86,7 @@ interface DemoDraw {
 }
 
 /**
- * An in-memory deck of made-up people that answers like the API, so the
+ * An in-memory sample deck that answers like the API, so the
  * landing page can run the real views without an account or a server.
  */
 export class DemoApi implements DeckApi {
@@ -75,8 +110,18 @@ export class DemoApi implements DeckApi {
         const at = new Date(now - daysAgo * DAY_MS - 3_600_000).toISOString();
         return { id: this.id("note"), text, created_at: at, updated_at: at };
       });
+      const media: Media = {
+        id: this.id("media"),
+        kind: "image",
+        display_url: seed.image.display,
+        thumbnail_url: seed.image.thumbnail,
+        original_url: seed.image.display,
+        width: IMAGE_WIDTH,
+        height: IMAGE_HEIGHT,
+        created_at: created,
+      };
       this.cardsByID.set(id, {
-        card: { id, name: seed.name, media: [], created_at: created, updated_at: created },
+        card: { id, name: seed.name, media: [media], created_at: created, updated_at: created },
         notes,
         lastDrawnAt: null,
       });

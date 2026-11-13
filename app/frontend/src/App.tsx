@@ -1,5 +1,6 @@
 import { MotionConfig } from "motion/react";
 import { useEffect, useState } from "react";
+import { CachedDeckApi } from "./api/cachedApi";
 import { ApiClient } from "./api/client";
 import type { User } from "./api/types";
 import { loadAPIURL } from "./lib/config";
@@ -23,6 +24,7 @@ function useHash(): string {
 
 export function App() {
   const [api, setApi] = useState<ApiClient | null>(null);
+  const [deckApi, setDeckApi] = useState<CachedDeckApi | null>(null);
   const [signedIn, setSignedIn] = useState(false);
   const hash = useHash();
 
@@ -31,6 +33,7 @@ export function App() {
       const client = new ApiClient(url);
       setSignedIn(client.signedIn);
       client.onAuthChange(setSignedIn);
+      setDeckApi(new CachedDeckApi(client));
       setApi(client);
     });
   }, []);
@@ -38,10 +41,10 @@ export function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="table-surface" />
-      {!api ? null : hash === "#/about" ? (
+      {!api || !deckApi ? null : hash === "#/about" ? (
         <Landing signedIn={signedIn} />
       ) : signedIn ? (
-        <Home api={api} />
+        <Home api={api} deckApi={deckApi} />
       ) : hash === "#/signin" ? (
         <SignIn api={api} />
       ) : (
@@ -51,16 +54,16 @@ export function App() {
   );
 }
 
-function Home({ api }: { api: ApiClient }) {
+function Home({ api, deckApi }: { api: ApiClient; deckApi: CachedDeckApi }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    api.me().then(setUser).catch(() => undefined);
-  }, [api]);
+    deckApi.me().then(setUser).catch(() => undefined);
+  }, [deckApi]);
 
   return (
     <DeckApp
-      api={api}
+      api={deckApi}
       actions={
         <button type="button" className="btn btn-quiet account" onClick={() => api.signOut()} title={user?.email}>
           Sign out
