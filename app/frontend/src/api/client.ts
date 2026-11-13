@@ -13,6 +13,7 @@ export class ApiError extends Error {
 }
 
 type Listener = (signedIn: boolean) => void;
+type ErrorListener = (err: ApiError) => void;
 
 /**
  * ApiClient talks to the Prayer Deck API. It keeps the token pair in local
@@ -22,6 +23,7 @@ export class ApiClient implements DeckApi {
   private tokens: Tokens | null;
   private refreshing: Promise<boolean> | null = null;
   private listeners = new Set<Listener>();
+  private errorListeners = new Set<ErrorListener>();
 
   constructor(readonly baseURL: string) {
     const stored = localStorage.getItem(TOKENS_KEY);
@@ -35,6 +37,12 @@ export class ApiClient implements DeckApi {
   onAuthChange(listener: Listener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** Hears every failed response other than ones a caller treats as a normal outcome or an ended session. */
+  onError(listener: ErrorListener): () => void {
+    this.errorListeners.add(listener);
+    return () => this.errorListeners.delete(listener);
   }
 
   signOut(): void {
@@ -123,13 +131,14 @@ export class ApiClient implements DeckApi {
 
   /** Deals the next cards in the pass; with shuffle, every card returns to the pass first. */
   draw(deckID: string, count: number, shuffle: boolean): Promise<Draw> {
-    return this.request("POST", `/v1/decks/${deckID}/draws`, { body: { count, shuffle } });
+    // An empty deck or a finished pass is a state of the deck the draw table shows.
+    return this.request("POST", `/v1/decks/${deckID}/draws`, { body: { count, shuffle }, expected: [409, 422] });
   }
 
   /** The deck's most recent draw, or null when nothing has been drawn yet. */
   async currentDraw(deckID: string): Promise<Draw | null> {
     try {
-      return await this.request<Draw>("GET", `/v1/decks/${deckID}/draws/current`);
+      return await this.request<Draw>("GET", `/v1/decks/${deckID}/draws/current`, { expected: [404] });
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) return null;
       throw err;
@@ -147,7 +156,7 @@ export class ApiClient implements DeckApi {
   private async request<T>(
     method: string,
     path: string,
-    opts: { auth?: boolean; body?: unknown; form?: FormData; retried?: boolean } = {},
+    opts: { auth?: boolean; body?: unknown; form?: FormData; retried?: boolean; expected?: number[] } = {},
   ): Promise<T> {
     const auth = opts.auth ?? true;
     const headers: Record<string, string> = {};
@@ -163,12 +172,16 @@ export class ApiClient implements DeckApi {
     const res = await fetch(this.baseURL + path, { method, headers, body });
 
     // The API answers 403 for any unusable access token, including an expired one.
+    let sessionEnded = false;
     if (auth && (res.status === 401 || res.status === 403) && !opts.retried) {
       if (await this.refresh()) return this.request<T>(method, path, { ...opts, retried: true });
       this.setTokens(null);
+      sessionEnded = true;
     }
     if (!res.ok) {
-      throw new ApiError(res.status, await errorMessage(res));
+      const err = new ApiError(res.status, await errorMessage(res));
+      if (!sessionEnded && !opts.expected?.includes(res.status)) this.errorListeners.forEach((l) => l(err));
+      throw err;
     }
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;

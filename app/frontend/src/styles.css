@@ -329,6 +329,78 @@ select {
   -webkit-user-select: none;
 }
 
+/* Torn card: a failed request */
+
+.torn-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(40, 32, 24, 0.45);
+}
+
+.torn-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: min(360px, 100%);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  padding: 1.5rem 1.75rem 1.75rem;
+  border-radius: 20px;
+  background: var(--paper);
+  box-shadow: 0 30px 70px -20px rgba(40, 26, 12, 0.55);
+  text-align: center;
+}
+
+.torn-dialog h2 {
+  margin: 0;
+  font-size: 2.2rem;
+}
+
+.torn-dialog p {
+  margin: 0;
+}
+
+.torn-detail {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.torn-dialog .btn {
+  margin-top: 0.6rem;
+}
+
+/* Room for the halves to drift apart without clipping. */
+.torn-stage {
+  width: min(170px, 42vw);
+  aspect-ratio: 1027 / 1532;
+  margin: 1.4rem 0 1.6rem;
+}
+
+.torn-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.torn-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 53%;
+  filter: drop-shadow(0 10px 14px rgba(70, 46, 22, 0.28));
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* Draw table */
 
 .draw-view {

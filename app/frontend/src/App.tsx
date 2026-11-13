@@ -1,8 +1,9 @@
 import { MotionConfig } from "motion/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CachedDeckApi } from "./api/cachedApi";
-import { ApiClient } from "./api/client";
+import { ApiClient, type ApiError } from "./api/client";
 import type { User } from "./api/types";
+import { TornCard } from "./components/TornCard";
 import { loadAPIURL } from "./lib/config";
 import { DeckApp } from "./views/DeckApp";
 import { Landing } from "./views/Landing";
@@ -26,6 +27,9 @@ export function App() {
   const [api, setApi] = useState<ApiClient | null>(null);
   const [deckApi, setDeckApi] = useState<CachedDeckApi | null>(null);
   const [signedIn, setSignedIn] = useState(false);
+  // The first failure of a burst stays up until dismissed; one torn card is enough.
+  const [serverError, setServerError] = useState<ApiError | null>(null);
+  const dismissServerError = useCallback(() => setServerError(null), []);
   const hash = useHash();
 
   useEffect(() => {
@@ -33,6 +37,7 @@ export function App() {
       const client = new ApiClient(url);
       setSignedIn(client.signedIn);
       client.onAuthChange(setSignedIn);
+      client.onError((err) => setServerError((shown) => shown ?? err));
       setDeckApi(new CachedDeckApi(client));
       setApi(client);
     });
@@ -50,6 +55,7 @@ export function App() {
       ) : (
         <Landing signedIn={false} />
       )}
+      <TornCard error={serverError} onDismiss={dismissServerError} />
     </MotionConfig>
   );
 }
