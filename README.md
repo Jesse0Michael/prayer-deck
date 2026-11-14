@@ -40,16 +40,20 @@ It exists to help you remember people, not to measure prayer.
 | **Pass**     | One trip through a deck. Cards drawn in the current pass wait on the discard pile until the deck is shuffled.                                             |
 | **Draw**     | The hand most recently dealt from a deck. It lasts until the next draw.                                                                                   |
 
-## How it fits together
+## Platform
 
-- **API**: a Go service that owns accounts, decks, cards, and draws. It stores
-  data in PostgreSQL and artwork in S3-compatible object storage.
-- **Client**: one web interface packaged with [Wails](https://v3.wails.io). It is
-  served to browsers today and is meant to ship to iOS later without a separate
-  Swift interface.
+| Piece     | Tech                                                                  | Runs on                              |
+| --------- | --------------------------------------------------------------------- | ------------------------------------ |
+| API       | Go, [ent](https://entgo.io), REST described in `api/openapi.yaml`     | Google Cloud Run (scales to zero)    |
+| Database  | PostgreSQL                                                            | Neon (free plan)                     |
+| Artwork   | S3-compatible storage, presigned URLs, three renditions per image     | Cloudflare R2 (MinIO locally)        |
+| Client    | React, TypeScript, Vite, `motion`, packaged with [Wails](https://v3.wails.io) | Cloudflare Pages; iOS later |
+| Auth      | Google sign-in; Sign in with Apple before an App Store release        |                                      |
+| Infra, CI | Terraform in `deploy/`, GitHub Actions                                | See [docs/deploy.md](docs/deploy.md) |
 
-Every client talks to the same hosted API, so a person's collection is the same
-on the web and, later, on the phone.
+Every client talks to the same hosted API, so a collection is the same on the web
+and, later, on the phone. The client caches reads locally to keep Cloud Run
+requests down.
 
 ## Running it locally
 
@@ -65,3 +69,5 @@ Locally you can sign in with any email address through the development sign-in.
 To use Google sign-in, set `GOOGLE_CLIENT_ID` in `.env` (see `.env.example`).
 
 See [AGENTS.md](AGENTS.md) for how the repository is organized and how to work in it.
+
+Card artwork is generated outside the app; the prompt lives in [docs/card-prompt.md](docs/card-prompt.md).
