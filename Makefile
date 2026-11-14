@@ -8,6 +8,10 @@ build: build-api build-web # Build all binaries into bin/.
 build-api: # Build the API server.
 	go build -o bin/prayer-deck-api ./cmd/server
 
+.PHONY: build-seed
+build-seed: # Build the tool that seeds a deployed deck from assets/.
+	go build -o bin/seed ./cmd/seed
+
 .PHONY: build-web
 build-web: # Build the web client as a Wails server-mode binary.
 	cd app/frontend && npm ci && npm run build
