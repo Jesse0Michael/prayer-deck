@@ -35,11 +35,23 @@ type Config struct {
 	Auth     auth.Config           `arg:"-"`
 	Google   oidc.GoogleAuthConfig `arg:"-"`
 	Postgres config.PostgresConfig `arg:"-"`
+	AWS      config.AWSConfig      `arg:"-"`
+	S3       config.S3Config       `arg:"-"`
 	Storage  media.Config          `arg:"-"`
 	// AllowedOrigins are the web app origins allowed to call the API from a browser.
 	AllowedOrigins []string `envconfig:"ALLOWED_ORIGINS"`
 	// DevLogin enables signing in with just an email address. Local development only.
 	DevLogin bool `envconfig:"DEV_LOGIN"`
+}
+
+// Init accepts storage aliases so the infrastructure and image can deploy independently.
+func (cfg *Config) Init() {
+	cfg.AWS.AccessKey = os.Getenv("STORAGE_ACCESS_KEY")
+	cfg.AWS.SecretKey = os.Getenv("STORAGE_SECRET_KEY")
+	cfg.S3.Endpoint = os.Getenv("STORAGE_ENDPOINT")
+	cfg.S3.PublicEndpoint = os.Getenv("STORAGE_PUBLIC_ENDPOINT")
+	cfg.S3.Region = os.Getenv("STORAGE_REGION")
+	cfg.S3.Bucket = os.Getenv("STORAGE_BUCKET")
 }
 
 func main() {
@@ -67,7 +79,11 @@ func (s *service) Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("failed to migrate schema: %w", err)
 	}
 
-	storage, err := media.NewStorage(ctx, cfg.Storage)
+	awsCfg, err := config.NewAWSConfig(ctx, cfg.AWS)
+	if err != nil {
+		return fmt.Errorf("failed to configure storage credentials: %w", err)
+	}
+	storage, err := media.NewStorage(ctx, awsCfg, cfg.S3, cfg.Storage)
 	if err != nil {
 		return fmt.Errorf("failed to connect to storage: %w", err)
 	}

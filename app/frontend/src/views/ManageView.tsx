@@ -5,11 +5,13 @@ import type { DeckApi } from "../api/deckApi";
 import type { Card, Deck } from "../api/types";
 import { CardBack } from "../components/CardBack";
 import { CardFace } from "../components/CardFace";
+import type { DeckMode } from "../lib/analytics";
 import { useDelayed } from "../lib/useDelayed";
 import { CardEditor } from "./CardEditor";
 
 interface ManageViewProps {
   api: DeckApi;
+  mode: DeckMode;
   /** Undefined while the deck is still loading. */
   deck: Deck | undefined;
   onDecksChanged: () => void;
@@ -20,7 +22,7 @@ type Editing = { card?: Card } | null;
 const PLACEHOLDER_COUNT = 5;
 const SLOW_LOAD_MS = 2500;
 
-export function ManageView({ api, deck, onDecksChanged }: ManageViewProps) {
+export function ManageView({ api, deck, mode, onDecksChanged }: ManageViewProps) {
   const [cards, setCards] = useState<Card[] | null>(null);
   const [editing, setEditing] = useState<Editing>(null);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +126,7 @@ export function ManageView({ api, deck, onDecksChanged }: ManageViewProps) {
           {editing && deck && (
           <CardEditor
             api={api}
+            mode={mode}
             deckID={deck.id}
             card={editing.card}
             onSaved={onSaved}

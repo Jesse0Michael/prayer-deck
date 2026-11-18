@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { DeckApi } from "../api/deckApi";
 import type { Deck } from "../api/types";
+import { trackPage } from "../lib/analytics";
 import { DrawView } from "./DrawView";
 import { ManageView } from "./ManageView";
 
@@ -20,6 +21,11 @@ export function DeckApp({ api, actions, embedded = false }: DeckAppProps) {
   const [decks, setDecks] = useState<Deck[] | null>(null);
   const [view, setView] = useState<View>("draw");
   const [error, setError] = useState<string | null>(null);
+  const mode = embedded ? "demo" : "personal";
+
+  useEffect(() => {
+    if (!embedded) trackPage(view === "draw" ? "draw" : "cards");
+  }, [embedded, view]);
 
   const refreshDecks = useCallback(() => {
     api
@@ -69,9 +75,9 @@ export function DeckApp({ api, actions, embedded = false }: DeckAppProps) {
               transition={{ duration: 0.25 }}
             >
               {view === "draw" ? (
-                <DrawView api={api} deck={deck} onDeckChanged={refreshDecks} onManage={() => setView("manage")} />
+                <DrawView api={api} deck={deck} mode={mode} onDeckChanged={refreshDecks} onManage={() => setView("manage")} />
               ) : (
-                <ManageView api={api} deck={deck} onDecksChanged={refreshDecks} />
+                <ManageView api={api} deck={deck} mode={mode} onDecksChanged={refreshDecks} />
               )}
             </motion.div>
           )}

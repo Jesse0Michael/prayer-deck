@@ -203,7 +203,7 @@ export interface paths {
                         "application/json": components["schemas"]["User"];
                     };
                 };
-                403: components["responses"]["Error"];
+                401: components["responses"]["Error"];
             };
         };
         put?: never;

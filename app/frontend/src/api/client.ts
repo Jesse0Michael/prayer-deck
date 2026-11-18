@@ -171,7 +171,7 @@ export class ApiClient implements DeckApi {
 
     const res = await fetch(this.baseURL + path, { method, headers, body });
 
-    // The API answers 403 for any unusable access token, including an expired one.
+    // Refresh once so an expired access token does not interrupt the user's action.
     let sessionEnded = false;
     if (auth && (res.status === 401 || res.status === 403) && !opts.retried) {
       if (await this.refresh()) return this.request<T>(method, path, { ...opts, retried: true });

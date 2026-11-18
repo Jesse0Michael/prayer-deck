@@ -21,6 +21,7 @@ provider "google" {
 
 locals {
   apis = [
+    "analyticsadmin.googleapis.com",
     "artifactregistry.googleapis.com",
     "billingbudgets.googleapis.com",
     "cloudresourcemanager.googleapis.com",
@@ -131,8 +132,8 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.repository" = "assertion.repository"
     "attribute.ref"        = "assertion.ref"
   }
-  # Only tokens minted for this repository are accepted at all.
-  attribute_condition = "assertion.repository == \"${var.github_repo}\""
+  # Only main's workflows can impersonate the production deployer.
+  attribute_condition = "assertion.repository == '${var.github_repo}' && assertion.ref == 'refs/heads/main'"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"

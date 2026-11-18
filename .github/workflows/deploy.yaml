@@ -22,8 +22,14 @@ env:
 jobs:
   api:
     name: Deploy API
-    # Deploys only what the test workflow passed.
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Only a tested main commit from this repository may use production credentials.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch') &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     outputs:
       api_url: ${{ steps.url.outputs.api_url }}
@@ -64,9 +70,46 @@ jobs:
           URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')
           echo "api_url=$URL" >> "$GITHUB_OUTPUT"
 
+  analytics:
+    name: Read Analytics Configuration
+    needs: api
+    runs-on: ubuntu-latest
+    outputs:
+      measurement_id: ${{ steps.config.outputs.measurement_id }}
+      hostname: ${{ steps.config.outputs.hostname }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Read Public Build Outputs
+        id: config
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        working-directory: deploy
+        run: |
+          terraform init -input=false -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
+          if ! measurement_id=$(terraform output -raw measurement_id) || ! [[ "$measurement_id" =~ ^G-[A-Z0-9]+$ ]] ||
+             ! hostname=$(terraform output -raw analytics_hostname) || ! [[ "$hostname" =~ ^[[:alnum:]][.[:alnum:]-]*$ ]]; then
+            echo "::error::Apply the Terraform workflow to provision Prayer Deck analytics, then rerun this job to publish the web build."
+            exit 1
+          fi
+          echo "measurement_id=$measurement_id" >> "$GITHUB_OUTPUT"
+          echo "hostname=$hostname" >> "$GITHUB_OUTPUT"
+
   web:
     name: Deploy Web
-    needs: api
+    needs: [api, analytics]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -85,6 +128,8 @@ jobs:
         working-directory: app/frontend
         env:
           VITE_API_URL: ${{ needs.api.outputs.api_url }}
+          VITE_GA_MEASUREMENT_ID: ${{ needs.analytics.outputs.measurement_id }}
+          VITE_ANALYTICS_HOSTNAME: ${{ needs.analytics.outputs.hostname }}
         run: npm ci && npm run build
 
       - name: Publish To Cloudflare Pages

@@ -1,3 +1,12 @@
+variable "analytics_account_id" {
+  description = "Numeric ID of the Google Analytics account that will own Prayer Deck's GA4 property."
+  type        = string
+  validation {
+    condition     = can(regex("^[0-9]+$", var.analytics_account_id))
+    error_message = "Supply the numeric account ID from Google Analytics Admin > Account details."
+  }
+}
+
 variable "project_id" {
   description = "Google Cloud project that hosts the API."
   type        = string

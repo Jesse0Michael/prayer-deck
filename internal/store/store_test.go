@@ -113,10 +113,6 @@ func cardIDs(cards []*ent.Card) []uuid.UUID {
 	return ids
 }
 
-func ptr[T any](v T) *T {
-	return &v
-}
-
 func TestStore_ResolveIdentity(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -283,7 +279,7 @@ func TestStore_CreateCard(t *testing.T) {
 			name:     "creates a card",
 			userID:   user1,
 			deckID:   deck2,
-			input:    CardInput{Name: ptr("Eve")},
+			input:    CardInput{Name: new("Eve")},
 			expected: &ent.Card{ID: uuid.MustParse("52fdfc07-2182-454f-963f-5f0f9a621d72"), Name: "Eve", CreatedAt: t0, UpdatedAt: t0},
 		},
 		{
@@ -297,7 +293,7 @@ func TestStore_CreateCard(t *testing.T) {
 			name:    "another user's deck is not found",
 			userID:  user2,
 			deckID:  deck2,
-			input:   CardInput{Name: ptr("Eve")},
+			input:   CardInput{Name: new("Eve")},
 			wantErr: ErrNotFound,
 		},
 	}
@@ -330,7 +326,7 @@ func TestStore_UpdateCard(t *testing.T) {
 			name:   "changes only the given fields",
 			userID: user1,
 			cardID: card1,
-			input:  CardInput{Name: ptr("Annie")},
+			input:  CardInput{Name: new("Annie")},
 			expected: func() *ent.Card {
 				c := testCard(card1)
 				c.Name = "Annie"
@@ -341,7 +337,7 @@ func TestStore_UpdateCard(t *testing.T) {
 			name:    "another user's card is not found",
 			userID:  user2,
 			cardID:  card1,
-			input:   CardInput{Name: ptr("Mallory")},
+			input:   CardInput{Name: new("Mallory")},
 			wantErr: ErrNotFound,
 		},
 	}

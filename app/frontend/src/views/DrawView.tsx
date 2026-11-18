@@ -6,6 +6,7 @@ import type { DeckApi } from "../api/deckApi";
 import type { DealtCard, Deck, Draw } from "../api/types";
 import { CardBack } from "../components/CardBack";
 import { PlayingCard } from "../components/PlayingCard";
+import { trackHandDealt, type DeckMode } from "../lib/analytics";
 import { preloadFaces } from "../lib/media";
 import { useDelayed } from "../lib/useDelayed";
 import { useElementSize, type Size } from "../lib/useElementSize";
@@ -75,13 +76,14 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface DrawViewProps {
   api: DeckApi;
+  mode: DeckMode;
   /** Undefined while the deck is still loading. */
   deck: Deck | undefined;
   onDeckChanged: () => void;
   onManage: () => void;
 }
 
-export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) {
+export function DrawView({ api, deck, mode, onDeckChanged, onManage }: DrawViewProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const size = useElementSize(stageRef);
   const [phase, setPhase] = useState<Phase>("loading");
@@ -168,10 +170,11 @@ export function DrawView({ api, deck, onDeckChanged, onManage }: DrawViewProps) 
     async (shuffle: boolean) => {
       if (!deckID) throw new Error("The deck has not loaded yet");
       const dealt = await api.draw(deckID, DRAW_COUNT, shuffle);
+      trackHandDealt(mode, shuffle, dealt.cards.length);
       await preloadFaces(dealt.cards);
       return dealt;
     },
-    [api, deckID],
+    [api, deckID, mode],
   );
 
   const deal = useCallback(

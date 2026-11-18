@@ -1,7 +1,8 @@
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DemoApi } from "../api/demoApi";
 import { CardBack } from "../components/CardBack";
+import { trackPage } from "../lib/analytics";
 import { DeckApp } from "./DeckApp";
 
 const CONTACT_EMAIL = "jesse.michael1234@gmail.com";
@@ -13,6 +14,7 @@ interface LandingProps {
 
 /** The public front page: what Prayer Deck is, a working demo, and a way to reach its author. */
 export function Landing({ signedIn }: LandingProps) {
+  useEffect(() => trackPage("landing"), []);
   const cta = signedIn ? { href: "#/", label: "Open your deck" } : { href: "#/signin", label: "Start your deck" };
 
   return (
@@ -103,7 +105,7 @@ function Demo() {
       <h2 className="hand-title">Try it</h2>
       <p className="landing-section-lede">
         This is the real app with a pretend deck. Shuffle and draw, open a card to read its notes, or switch to Cards to
-        add people and pictures. Nothing leaves your browser, and it all resets when you leave.
+        add people and pictures. Your demo cards, pictures, and notes stay in this browser and reset when you leave.
       </p>
       <div className="landing-demo-frame">
         <DeckApp

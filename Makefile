@@ -52,7 +52,8 @@ run: # Run the API locally against the Docker Postgres and MinIO. Loads .env if 
 	ALLOWED_ORIGINS=http://localhost:3000,http://localhost:9245,http://127.0.0.1:9245 \
 	POSTGRES_PORT=$${POSTGRES_HOST_PORT:-5434} \
 	POSTGRES_USER=prayerdeck POSTGRES_PASSWORD=prayerdeck POSTGRES_DB=prayerdeck POSTGRES_SSLMODE=disable \
-	STORAGE_ACCESS_KEY=prayerdeck STORAGE_SECRET_KEY=prayerdeck-secret STORAGE_CREATE_BUCKET=true \
+	AWS_ENDPOINT_URL_S3=http://localhost:9000 S3_REGION=us-east-1 S3_BUCKET=prayer-deck \
+	AWS_ACCESS_KEY_ID=prayerdeck AWS_SECRET_ACCESS_KEY=prayerdeck-secret STORAGE_CREATE_BUCKET=true \
 	go run ./cmd/server
 
 .PHONY: dev-web

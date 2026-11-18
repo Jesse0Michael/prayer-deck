@@ -4,9 +4,11 @@ import type { DeckApi } from "../api/deckApi";
 import type { Card, Media } from "../api/types";
 import { CardFace } from "../components/CardFace";
 import { NotesPanel, type NotesPanelHandle } from "../components/NotesPanel";
+import { trackCard, type DeckMode } from "../lib/analytics";
 
 interface CardEditorProps {
   api: DeckApi;
+  mode: DeckMode;
   deckID: string;
   /** The card to edit; omitted when adding a new card. */
   card?: Card;
@@ -46,7 +48,7 @@ function pendingImage(file: File): EditorImage {
   };
 }
 
-export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: CardEditorProps) {
+export function CardEditor({ api, mode, deckID, card, onSaved, onDeleted, onClose }: CardEditorProps) {
   const [name, setName] = useState(card?.name ?? "");
   // Newest first: the first image is the card's primary face, the rest fill the gallery.
   const [images, setImages] = useState<EditorImage[]>(() => (card?.media ?? []).map((media) => ({ media })));
@@ -72,13 +74,15 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
 
   const notesPanel = useRef<NotesPanelHandle>(null);
 
-  const startCard = async () => {
-    if (latest.current) return latest.current.id;
+  const createCard = async () => {
     const created = await api.createCard(deckID, { name: name.trim() });
     latest.current = created;
     setStarted(created);
-    return created.id;
+    trackCard("card_created", mode);
+    return created;
   };
+
+  const startCard = async () => (latest.current ?? await createCard()).id;
 
   const close = () => {
     if (latest.current) onSaved(latest.current);
@@ -124,7 +128,7 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
         setSaving(false);
         return;
       }
-      let saved = latest.current ?? card ?? (await api.createCard(deckID, input));
+      let saved = latest.current ?? card ?? (await createCard());
       latest.current = saved;
       for (const mediaID of removed) {
         await api.deleteMedia(saved.id, mediaID);
@@ -138,7 +142,9 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
         const stored = saved.media[0];
         setImages((prev) => prev.map((i) => (i === img ? { media: stored } : i)));
       }
-      onSaved(await api.updateCard(saved.id, input));
+      saved = await api.updateCard(saved.id, input);
+      if (card) trackCard("card_updated", mode);
+      onSaved(saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the card.");
       setSaving(false);
@@ -150,6 +156,7 @@ export function CardEditor({ api, deckID, card, onSaved, onDeleted, onClose }: C
     setSaving(true);
     try {
       await api.deleteCard(card.id);
+      trackCard("card_deleted", mode);
       onDeleted(card.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete the card.");

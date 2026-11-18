@@ -5,64 +5,82 @@ on:
       - deploy/**
       - .github/workflows/terraform.yaml
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - deploy/**
       - .github/workflows/terraform.yaml
   workflow_dispatch:
 
-# Applies must never overlap; they would fight over the state lock.
-concurrency:
-  group: terraform
-  cancel-in-progress: false
-
 permissions:
   contents: read
-  id-token: write
 
 env:
   TF_IN_AUTOMATION: "true"
-  TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
-  TF_VAR_region: ${{ vars.GCP_REGION }}
-  TF_VAR_domain: ${{ vars.DOMAIN }}
-  TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-  TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
-  TF_VAR_neon_org_id: ${{ vars.NEON_ORG_ID }}
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-  NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+
+defaults:
+  run:
+    working-directory: deploy
 
 jobs:
-  terraform:
-    name: Plan and Apply
+  validate:
+    name: Validate Configuration
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: deploy
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -lockfile=readonly
+      - run: terraform validate
+      - run: terraform test
+
+  apply:
+    name: Plan and Apply
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: terraform-apply
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+      TF_VAR_region: ${{ vars.GCP_REGION }}
+      TF_VAR_domain: ${{ vars.DOMAIN }}
+      TF_VAR_cloudflare_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
+      TF_VAR_analytics_account_id: ${{ vars.GA_ACCOUNT_ID }}
+      TF_VAR_neon_org_id: ${{ vars.NEON_ORG_ID }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud and Analytics
+        id: auth
         uses: google-github-actions/auth@v3
         with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
           service_account: ${{ vars.DEPLOYER_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/analytics.edit
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-
-      - name: Check Formatting
-        run: terraform fmt -check -recursive
+        with:
+          terraform_wrapper: false
 
       - name: Init
-        run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
-
-      - name: Validate
-        run: terraform validate
+        run: terraform init -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
 
       - name: Plan
-        run: terraform plan -input=false -out=tfplan
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: terraform plan -input=false -lock-timeout=5m -out=tfplan
 
       - name: Summarize Plan
         run: |
@@ -74,5 +92,6 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply
-        if: github.event_name != 'pull_request'
-        run: terraform apply -input=false tfplan
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: terraform apply -input=false -lock-timeout=5m tfplan

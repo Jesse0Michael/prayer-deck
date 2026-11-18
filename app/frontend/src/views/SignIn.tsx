@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { ApiClient } from "../api/client";
 import type { LoginProvider } from "../api/types";
 import { CardBack } from "../components/CardBack";
+import { trackLogin, trackPage } from "../lib/analytics";
 
 interface GoogleIdentity {
   accounts: {
@@ -38,6 +39,7 @@ export function SignIn({ api }: { api: ApiClient }) {
   const googleButton = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    trackPage("sign-in");
     api
       .loginProviders()
       .then(setProviders)
@@ -55,7 +57,7 @@ export function SignIn({ api }: { api: ApiClient }) {
         gis.accounts.id.initialize({
           client_id: google.client_id!,
           callback: ({ credential }) => {
-            api.signIn("google", credential).catch((err: Error) => setError(err.message));
+            api.signIn("google", credential).then(trackLogin).catch((err: Error) => setError(err.message));
           },
         });
         gis.accounts.id.renderButton(el, { theme: "outline", size: "large", shape: "pill", text: "continue_with", width: 280 });

@@ -29,8 +29,7 @@ type cardRequest struct {
 func (req cardRequest) input() store.CardInput {
 	var in store.CardInput
 	if req.Name != nil {
-		name := strings.TrimSpace(*req.Name)
-		in.Name = &name
+		in.Name = new(strings.TrimSpace(*req.Name))
 	}
 	return in
 }

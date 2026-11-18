@@ -114,14 +114,14 @@ func TestServer_Auth(t *testing.T) {
 	}{
 		{
 			name:         "missing token",
-			expectedCode: http.StatusForbidden,
-			expectedBody: `{"errors":[{"message":"forbidden"}]}`,
+			expectedCode: http.StatusUnauthorized,
+			expectedBody: `{"errors":[{"message":"unauthorized"}]}`,
 		},
 		{
 			name:         "invalid token",
 			token:        "test-invalid-token",
-			expectedCode: http.StatusForbidden,
-			expectedBody: `{"errors":[{"message":"forbidden"}]}`,
+			expectedCode: http.StatusUnauthorized,
+			expectedBody: `{"errors":[{"message":"unauthorized"}]}`,
 		},
 	}
 	for _, tt := range tests {
@@ -132,6 +132,11 @@ func TestServer_Auth(t *testing.T) {
 
 			require.Equal(t, tt.expectedCode, w.Code)
 			require.Equal(t, tt.expectedBody, strings.TrimSpace(w.Body.String()))
+			require.Equal(t, http.Header{
+				"Content-Type":           {"application/json"},
+				"X-Content-Type-Options": {"nosniff"},
+				"Connection":             {"keep-alive"},
+			}, w.Result().Header)
 		})
 	}
 }
@@ -472,7 +477,6 @@ func TestServer_decks(t *testing.T) {
 }
 
 func TestServer_cards(t *testing.T) {
-	name := "test-card"
 	tests := []struct {
 		name         string
 		method       string
@@ -520,7 +524,7 @@ func TestServer_cards(t *testing.T) {
 			path:   "/v1/decks/" + testDeckID.String() + "/cards",
 			body:   `{"name":" test-card "}`,
 			mockSetup: func(st *MockStore, _ *MockStorage) {
-				st.EXPECT().CreateCard(gomock.Any(), testUserID, testDeckID, store.CardInput{Name: &name}).Return(testCard(), nil)
+				st.EXPECT().CreateCard(gomock.Any(), testUserID, testDeckID, store.CardInput{Name: new("test-card")}).Return(testCard(), nil)
 			},
 			expectedCode: http.StatusCreated,
 			expectedBody: testCardJSON,
@@ -553,7 +557,7 @@ func TestServer_cards(t *testing.T) {
 			path:   "/v1/cards/" + testCardID.String(),
 			body:   `{"name":"test-card"}`,
 			mockSetup: func(st *MockStore, _ *MockStorage) {
-				st.EXPECT().UpdateCard(gomock.Any(), testUserID, testCardID, store.CardInput{Name: &name}).Return(testCard(), nil)
+				st.EXPECT().UpdateCard(gomock.Any(), testUserID, testCardID, store.CardInput{Name: new("test-card")}).Return(testCard(), nil)
 			},
 			expectedCode: http.StatusOK,
 			expectedBody: testCardJSON,
@@ -564,8 +568,7 @@ func TestServer_cards(t *testing.T) {
 			path:   "/v1/cards/" + testCardID.String(),
 			body:   `{"name":"  "}`,
 			mockSetup: func(st *MockStore, _ *MockStorage) {
-				blank := ""
-				st.EXPECT().UpdateCard(gomock.Any(), testUserID, testCardID, store.CardInput{Name: &blank}).Return(testCard(), nil)
+				st.EXPECT().UpdateCard(gomock.Any(), testUserID, testCardID, store.CardInput{Name: new("")}).Return(testCard(), nil)
 			},
 			expectedCode: http.StatusOK,
 			expectedBody: testCardJSON,

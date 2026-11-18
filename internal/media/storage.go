@@ -7,91 +7,73 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"time"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/jesse0michael/pkg/config"
 )
 
-// Config configures the S3-compatible artwork bucket.
+// Config controls artwork URL lifetimes and local bucket provisioning.
 type Config struct {
-	// Endpoint is the URL the API reaches the object store at.
-	Endpoint string `envconfig:"STORAGE_ENDPOINT" default:"http://localhost:9000"`
-	// PublicEndpoint is the URL browsers reach the object store at, used to
-	// sign artwork URLs. Defaults to Endpoint.
-	PublicEndpoint string        `envconfig:"STORAGE_PUBLIC_ENDPOINT"`
-	Region         string        `envconfig:"STORAGE_REGION" default:"us-east-1"`
-	Bucket         string        `envconfig:"STORAGE_BUCKET" default:"prayer-deck"`
-	AccessKey      string        `envconfig:"STORAGE_ACCESS_KEY"`
-	SecretKey      string        `envconfig:"STORAGE_SECRET_KEY"`
-	URLExpiry      time.Duration `envconfig:"STORAGE_URL_EXPIRY" default:"6h"`
+	URLExpiry time.Duration `envconfig:"STORAGE_URL_EXPIRY" default:"6h"`
 	// CreateBucket creates the bucket at startup when it is missing; meant for local MinIO.
 	CreateBucket bool `envconfig:"STORAGE_CREATE_BUCKET"`
 }
 
 // Storage reads and writes artwork objects in one bucket.
 type Storage struct {
-	client *minio.Client
+	client *s3.Client
 	// signer only signs URLs. Signing happens offline, so this client never
 	// needs to reach the public endpoint from inside the deployment.
-	signer *minio.Client
+	signer *s3.PresignClient
 	bucket string
 	expiry time.Duration
 }
 
 // NewStorage connects to the configured bucket, creating it when CreateBucket is set.
-func NewStorage(ctx context.Context, cfg Config) (*Storage, error) {
-	client, err := newClient(cfg.Endpoint, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create storage client: %w", err)
+func NewStorage(ctx context.Context, awsCfg aws.Config, s3Cfg config.S3Config, cfg Config) (*Storage, error) {
+	if s3Cfg.Bucket == "" {
+		return nil, errors.New("storage bucket is required")
 	}
-	public := cfg.PublicEndpoint
-	if public == "" {
-		public = cfg.Endpoint
+	if cfg.URLExpiry <= 0 || cfg.URLExpiry > 7*24*time.Hour {
+		return nil, errors.New("storage URL expiry must be greater than zero and at most 168h")
 	}
-	signer, err := newClient(public, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create storage signer: %w", err)
-	}
+	client := config.NewS3Client(awsCfg, s3Cfg)
+	signer := config.NewS3PresignClient(awsCfg, s3Cfg)
 
 	if cfg.CreateBucket {
-		exists, err := client.BucketExists(ctx, cfg.Bucket)
+		_, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: new(s3Cfg.Bucket)})
 		if err != nil {
-			return nil, fmt.Errorf("failed to check bucket %s: %w", cfg.Bucket, err)
-		}
-		if !exists {
-			if err := client.MakeBucket(ctx, cfg.Bucket, minio.MakeBucketOptions{Region: cfg.Region}); err != nil {
-				return nil, fmt.Errorf("failed to create bucket %s: %w", cfg.Bucket, err)
+			var missing *types.NotFound
+			if !errors.As(err, &missing) {
+				return nil, fmt.Errorf("failed to check bucket %s: %w", s3Cfg.Bucket, err)
+			}
+			input := &s3.CreateBucketInput{Bucket: new(s3Cfg.Bucket)}
+			// S3 requires the location constraint to be omitted for us-east-1.
+			if region := client.Options().Region; region != "" && region != "us-east-1" {
+				input.CreateBucketConfiguration = &types.CreateBucketConfiguration{LocationConstraint: types.BucketLocationConstraint(region)}
+			}
+			if _, err := client.CreateBucket(ctx, input); err != nil {
+				return nil, fmt.Errorf("failed to create bucket %s: %w", s3Cfg.Bucket, err)
 			}
 		}
 	}
 
-	return &Storage{client: client, signer: signer, bucket: cfg.Bucket, expiry: cfg.URLExpiry}, nil
-}
-
-func newClient(endpoint string, cfg Config) (*minio.Client, error) {
-	u, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse endpoint %q: %w", endpoint, err)
-	}
-	if u.Host == "" {
-		return nil, fmt.Errorf("endpoint %q must be a URL with a scheme and host", endpoint)
-	}
-	return minio.New(u.Host, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
-		Secure: u.Scheme == "https",
-		// A fixed region keeps URL signing from looking the region up over the network.
-		Region: cfg.Region,
-	})
+	return &Storage{client: client, signer: signer, bucket: s3Cfg.Bucket, expiry: cfg.URLExpiry}, nil
 }
 
 // Put uploads an object.
 func (s *Storage) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {
-	_, err := s.client.PutObject(ctx, s.bucket, key, r, size, minio.PutObjectOptions{
-		ContentType: contentType,
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:        new(s.bucket),
+		Key:           new(key),
+		Body:          r,
+		ContentLength: new(size),
+		ContentType:   new(contentType),
 		// Keys are never reused, so an object at a key never changes.
-		CacheControl: "private, max-age=31536000, immutable",
+		CacheControl: new("private, max-age=31536000, immutable"),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to put object %s: %w", key, err)
@@ -103,7 +85,7 @@ func (s *Storage) Put(ctx context.Context, key string, r io.Reader, size int64, 
 func (s *Storage) Delete(ctx context.Context, keys ...string) error {
 	var errs []error
 	for _, key := range keys {
-		if err := s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{}); err != nil {
+		if _, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: new(s.bucket), Key: new(key)}); err != nil {
 			errs = append(errs, fmt.Errorf("failed to delete object %s: %w", key, err))
 		}
 	}
@@ -112,16 +94,16 @@ func (s *Storage) Delete(ctx context.Context, keys ...string) error {
 
 // URL returns a time-limited URL a browser can load the object from.
 func (s *Storage) URL(ctx context.Context, key string) (string, error) {
-	u, err := s.signer.PresignedGetObject(ctx, s.bucket, key, s.expiry, nil)
+	u, err := s.signer.PresignGetObject(ctx, &s3.GetObjectInput{Bucket: new(s.bucket), Key: new(key)}, s3.WithPresignExpires(s.expiry))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign url for %s: %w", key, err)
 	}
-	return u.String(), nil
+	return u.URL, nil
 }
 
 // Healthy reports whether the bucket is reachable.
 func (s *Storage) Healthy(ctx context.Context) error {
-	if _, err := s.client.BucketExists(ctx, s.bucket); err != nil {
+	if _, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: new(s.bucket)}); err != nil {
 		return fmt.Errorf("failed to reach bucket %s: %w", s.bucket, err)
 	}
 	return nil

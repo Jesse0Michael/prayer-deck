@@ -43,11 +43,16 @@ resource "google_cloud_run_v2_service" "api" {
           POSTGRES_USER         = neon_project.db.database_user
           POSTGRES_DB           = neon_project.db.database_name
           POSTGRES_SSLMODE      = "require"
-          STORAGE_ENDPOINT      = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
-          STORAGE_REGION        = "auto"
-          STORAGE_BUCKET        = cloudflare_r2_bucket.artwork.name
-          STORAGE_ACCESS_KEY    = cloudflare_account_token.r2_s3.id
+          AWS_ENDPOINT_URL_S3   = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+          S3_REGION             = "auto"
+          S3_BUCKET             = cloudflare_r2_bucket.artwork.name
+          AWS_ACCESS_KEY_ID     = cloudflare_account_token.r2_s3.id
           STORAGE_CREATE_BUCKET = "false"
+          # Both names let Terraform and the API image roll out independently.
+          STORAGE_ENDPOINT   = "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com"
+          STORAGE_REGION     = "auto"
+          STORAGE_BUCKET     = cloudflare_r2_bucket.artwork.name
+          STORAGE_ACCESS_KEY = cloudflare_account_token.r2_s3.id
           # The longest presigned URLs allow, so the client's cached deck goes a week between refreshes.
           STORAGE_URL_EXPIRY = "168h"
         }
@@ -59,9 +64,10 @@ resource "google_cloud_run_v2_service" "api" {
 
       dynamic "env" {
         for_each = {
-          AUTH_SECRET_KEY    = "auth-secret-key"
-          POSTGRES_PASSWORD  = "postgres-password"
-          STORAGE_SECRET_KEY = "storage-secret-key"
+          AUTH_SECRET_KEY       = "auth-secret-key"
+          POSTGRES_PASSWORD     = "postgres-password"
+          AWS_SECRET_ACCESS_KEY = "storage-secret-key"
+          STORAGE_SECRET_KEY    = "storage-secret-key"
         }
         content {
           name = env.key

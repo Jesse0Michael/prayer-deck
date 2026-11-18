@@ -26,8 +26,10 @@ people easy.
 - **Decks.** Keep more than one deck, such as family, friends, or church, and
   draw from whichever you choose.
 
-The app is deliberately small. It has no streaks, scores, feeds, or tracking.
-It exists to help you remember people, not to measure prayer.
+The app has no streaks, scores, or feeds. The published web app uses Google
+Analytics to count visits, sign-ins, deals, and card management actions. Card
+names, notes, artwork, and who you pray for stay out of analytics. See
+[web analytics](docs/analytics.md) for the event list.
 
 ## Concepts
 

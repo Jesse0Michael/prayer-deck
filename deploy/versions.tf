@@ -7,6 +7,10 @@ terraform {
   }
 
   required_providers {
+    googleanalytics = {
+      source  = "breymander/google-analytics"
+      version = "= 0.1.0"
+    }
     google = {
       source  = "hashicorp/google"
       version = "~> 6.0"
@@ -35,3 +39,5 @@ provider "google" {
 provider "cloudflare" {}
 
 provider "neon" {}
+
+provider "googleanalytics" {}
